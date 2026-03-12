@@ -1,5 +1,5 @@
 # Horix — Sistema de Control de Horas Extra
-**Vitamar S.A.** · v2.1.0 · © 2025 Todos los derechos reservados.
+**v2.1.0** · © 2025 Edgar Velasquez · Desarrollado para Vitamar S.A.
 
 > Software propietario bajo licencia comercial. Ver [LICENSE](./LICENSE).
 
@@ -92,5 +92,5 @@ cd horix && git pull && npm install --production && pm2 restart horix
 
 ## Licencia
 
-Software propietario. © 2025 Vitamar S.A. Todos los derechos reservados.  
-Ver [LICENSE](./LICENSE) para términos completos.
+Software propietario. © 2025 Edgar Velasquez. Desarrollado para Vitamar S.A.  
+Todos los derechos reservados. Ver [LICENSE](./LICENSE) para términos completos.
