@@ -19,7 +19,7 @@
   "engines": {
     "node": ">=18.0.0"
   },
-  "author": "Vitamar S.A.",
-  "license": "UNLICENSED",
+  "author": "Edgar Velasquez",
+  "license": "SEE LICENSE IN LICENSE",
   "private": true
 }
