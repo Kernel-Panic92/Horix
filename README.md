@@ -41,13 +41,12 @@ horix/
 ├── install.sh                # Instalador automático
 ├── backup_horasextra.sh      # Script de backup automático
 ├── LICENSE                   # Licencia propietaria
-├── .backup_pass              # ⚠ NO subir a Git
-├── horas_extra.db            # ⚠ NO subir a Git
 └── public/
-    ├── index.html
-    ├── reset-password.html
-    └── logo_empresa.*        # ⚠ NO subir a Git
+    ├── index.html            # Aplicación frontend
+    └── reset-password.html   # Recuperación de contraseña
 ```
+
+> Los archivos sensibles (`.backup_pass`, `horas_extra.db`, `logo_empresa.*`) son generados automáticamente durante la instalación y están excluidos por `.gitignore`.
 
 ---
 
