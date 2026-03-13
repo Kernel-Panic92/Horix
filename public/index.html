@@ -88,7 +88,7 @@
   .nav-item.active{color:var(--accent);border-left-color:var(--accent);background:rgba(79,142,247,0.08);}
   .nav-item.hidden{display:none;}
   .nav-icon{font-size:17px;width:22px;text-align:center;}
-  .sidebar-footer{margin-top:auto;padding:12px 16px;}
+  .nav-menu{flex:1;overflow-y:auto;overflow-x:hidden;padding-bottom:8px;}.sidebar-footer{padding:12px 16px;flex-shrink:0;}
   .btn-logout{width:100%;background:rgba(247,97,79,0.1);border:1px solid rgba(247,97,79,0.2);color:var(--danger);border-radius:9px;padding:9px 14px;font-family:var(--font-body);font-size:13px;cursor:pointer;transition:all 0.2s;display:flex;align-items:center;justify-content:center;gap:8px;}
   .btn-logout:hover{background:rgba(247,97,79,0.2);}
 
@@ -675,6 +675,7 @@
       <div class="user-role" id="ui-sede" style="color:var(--accent);font-size:10px;margin-top:2px;">—</div>
       <div class="role-badge" id="ui-rol-badge">—</div>
     </div>
+    <div class="nav-menu">
     <div class="nav-item active"  onclick="navigate('dashboard')"><span class="nav-icon">📊</span><span>Dashboard</span></div>
     <div class="nav-item"         onclick="navigate('registro')" id="nav-registro"><span class="nav-icon">➕</span><span>Registrar Horas</span></div>
     <div class="nav-item"         onclick="navigate('historial')"><span class="nav-icon">📋</span><span>Historial</span></div>
@@ -688,6 +689,7 @@
       <div class="nav-item nav-sub" onclick="navigate('smtp')" id="nav-smtp"><span class="nav-icon">📧</span><span>Config. Correo</span></div>
       <div class="nav-item nav-sub" onclick="navigate('backup')" id="nav-backup"><span class="nav-icon">💾</span><span>Backup</span></div>
       <div class="nav-item nav-sub" onclick="navigate('personalizacion')" id="nav-personalizacion"><span class="nav-icon">🎨</span><span>Personalización</span></div>
+    </div>
     </div>
     <div class="sidebar-footer">
 
