@@ -623,8 +623,8 @@
 ══════════════════════════════════════════ -->
 <div id="login-screen">
   <div class="login-box">
-    <div class="login-logo">Horix<span>.</span></div>
-    <div class="login-sub">Sistema de Control de Horas Extra — Vitamar S.A</div>
+    <div class="login-logo">HorasExtra<span>.</span></div>
+    <div class="login-sub">Sistema de Control de Horas Extra</div>
     <div class="login-title">Iniciar Sesión</div>
     <div class="login-error" id="login-error"></div>
     <div class="form-group" style="margin-bottom:16px;">
@@ -668,7 +668,7 @@
 <div id="app-screen">
   <div class="mob-overlay" id="mob-overlay" onclick="cerrarSidebar()"></div>
   <nav class="sidebar" id="sidebar">
-    <div class="logo">Horix<span>.</span></div>
+    <div class="logo">HorasExtra<span>.</span></div>
     <div class="user-info">
       <div class="user-name" id="ui-nombre">—</div>
       <div class="user-role" id="ui-email">—</div>
@@ -679,6 +679,7 @@
     <div class="nav-item"         onclick="navigate('registro')" id="nav-registro"><span class="nav-icon">➕</span><span>Registrar Horas</span></div>
     <div class="nav-item"         onclick="navigate('historial')"><span class="nav-icon">📋</span><span>Historial</span></div>
     <div class="nav-item"         onclick="navigate('empleados')"><span class="nav-icon">👥</span><span>Empleados</span></div>
+    <div class="nav-item"         onclick="navigate('centros')" id="nav-centros"><span class="nav-icon">🏢</span><span>Centros de Op.</span></div>
     <div class="nav-item"         onclick="navigate('nomina')"   id="nav-nomina"><span class="nav-icon">💰</span><span>Períodos Nómina</span></div>
     <div class="nav-item"         onclick="navigate('reportes')"><span class="nav-icon">📈</span><span>Reportes</span></div>
     <div class="nav-item"         onclick="navigate('usuarios')" id="nav-usuarios"><span class="nav-icon">🔐</span><span>Usuarios</span></div>
@@ -691,8 +692,8 @@
     <div class="sidebar-footer">
 
       <div style="margin-top:10px;text-align:center;font-size:10px;color:var(--muted);line-height:1.6;opacity:0.7;">
-        <div>v2.1.0 — Horix</div>
-        <div>© 2025 Vitamar S.A.</div>
+        <div>v2.1.0 — HorasExtra</div>
+        <div>© 2025 Edgar Velasquez</div>
         <div>Todos los derechos reservados</div>
       </div>
     </div>
@@ -845,7 +846,7 @@
       <div class="filters">
         <input type="text" id="fil-buscar" placeholder="🔍 Buscar empleado..." oninput="renderHistorial()"/>
         <select id="fil-tipo" onchange="renderHistorial()"><option value="">Todos los tipos</option><option value="diurna">Diurna</option><option value="nocturna">Nocturna</option><option value="festivo">Festivo</option><option value="transporte">Transporte</option></select>
-        <select id="fil-sede" onchange="renderHistorial()" class="sede-filter-admin"><option value="">Todas las sedes</option><option value="Itagui">Itagüí</option><option value="Bogota">Bogotá</option><option value="Cartagena">Cartagena</option></select>
+        <select id="fil-sede" onchange="renderHistorial()" class="sede-filter-admin"><option value="">Todos los centros</option></select>
         <select id="fil-nomina"   onchange="renderHistorial()"><option value="">Todos los períodos</option></select>
         <select id="fil-empleado" onchange="renderHistorial()"><option value="">Todos los empleados</option></select>
         <button class="btn btn-secondary btn-sm" onclick="exportarCSV('historial')">📥 Exportar</button>
@@ -914,12 +915,7 @@
           </div>
           <div class="form-group">
             <label>Sede</label>
-            <select id="rpt-sede" onchange="renderReporte()">
-              <option value="">Todas las sedes</option>
-              <option value="Itagui">Itagüí</option>
-              <option value="Bogota">Bogotá</option>
-              <option value="Cartagena">Cartagena</option>
-            </select>
+            <select id="rpt-sede" onchange="renderReporte()"><option value="">Todos los centros</option></select>
           </div>
         </div>
       </div>
@@ -941,6 +937,18 @@
         </div>
         <table style="min-width:1380px;"><thead><tr><th>Empleado</th><th>Cargo</th><th>Sede</th><th>Período</th><th>Fecha</th><th>Horas</th><th>Tipo</th><th>Concepto</th><th>Aprobador</th><th>Motivo</th><th>Registrado por</th><th>Transporte</th><th>Observaciones</th></tr></thead>
         <tbody id="rpt-body"></tbody></table>
+      </div>
+    </div>
+
+    <!-- CENTROS DE OPERACIÓN -->
+    <div class="page" id="page-centros">
+      <div class="page-header" style="display:flex;justify-content:space-between;align-items:flex-start;">
+        <div><div class="page-title">Centros de Operación</div><div class="page-sub">Gestiona las sedes o ubicaciones de tu organización</div></div>
+        <button class="btn btn-primary" onclick="abrirModalCentro()" id="btn-nuevo-centro">+ Nuevo Centro</button>
+      </div>
+      <div class="table-wrap">
+        <table><thead><tr><th>Nombre</th><th>Estado</th><th>Creado</th><th>Empleados</th><th>Acciones</th></tr></thead>
+        <tbody id="centros-body"></tbody></table>
       </div>
     </div>
 
@@ -1146,6 +1154,26 @@
   </main>
 </div>
 
+<!-- MODAL CENTRO -->
+<div class="modal-overlay" id="modal-centro">
+  <div class="modal" style="width:420px;">
+    <div class="modal-title" id="modal-centro-title">Nuevo Centro de Operación</div>
+    <input type="hidden" id="centro-id"/>
+    <div class="form-group">
+      <label>Nombre del Centro *</label>
+      <input type="text" id="centro-nombre" placeholder="Ej: Sede Principal, Planta Norte..."/>
+    </div>
+    <div class="form-group" id="centro-activo-group" style="display:none;">
+      <label>Estado</label>
+      <select id="centro-activo"><option value="1">Activo</option><option value="0">Inactivo</option></select>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="cerrarModal('modal-centro')">Cancelar</button>
+      <button class="btn btn-primary" onclick="guardarCentro()">Guardar</button>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL EMPLEADO -->
 <div class="modal-overlay" id="modal-empleado">
   <div class="modal">
@@ -1157,11 +1185,7 @@
       <div class="form-group"><label>Departamento *</label><input type="text" id="emp-depto" placeholder="Área o departamento"/></div>
       <div class="form-group"><label>Correo</label><input type="email" id="emp-email" placeholder="correo@empresa.com"/></div>
       <div class="form-group"><label>Teléfono</label><input type="text" id="emp-tel" placeholder="Número de contacto"/></div>
-      <div class="form-group"><label>Sede *</label><select id="emp-sede"><option value="">Seleccionar sede...</option>
-              <option value="Itagui">Itagüí</option>
-              <option value="Bogota">Bogotá</option>
-              <option value="Cartagena">Cartagena</option>
-            </select></div>
+      <div class="form-group"><label>Sede *</label><select id="emp-sede"><option value="">Seleccionar centro...</option></select></div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="cerrarModal('modal-empleado')">Cancelar</button>
@@ -1232,11 +1256,7 @@
           <option value="admin">Admin — Acceso total</option>
         </select>
       </div>
-      <div class="form-group"><label>Sede *</label><select id="usr-sede"><option value="">Seleccionar sede...</option>
-              <option value="Itagui">Itagüí</option>
-              <option value="Bogota">Bogotá</option>
-              <option value="Cartagena">Cartagena</option>
-            </select></div>
+      <div class="form-group"><label>Sede *</label><select id="usr-sede"><option value="">Seleccionar centro...</option></select></div>
       <div class="form-group" id="usr-activo-group" style="display:none;">
         <label>Estado</label>
         <select id="usr-activo"><option value="1">Activo</option><option value="0">Inactivo</option></select>
@@ -1303,7 +1323,7 @@ const API = '';
 // ESTADO
 // ═══════════════════════════════════════════════════
 let sesion     = JSON.parse(localStorage.getItem('he_sesion') || 'null');
-let empleados  = [], nominas = [], registros = [], usuarios = [];
+let empleados  = [], nominas = [], registros = [], usuarios = [], centros = [];
 let editEmpId  = null, editUsrId = null;
 
 // ═══════════════════════════════════════════════════
@@ -1395,6 +1415,7 @@ async function iniciarApp() {
   // Permisos de navegación
   document.getElementById('nav-registro').classList.toggle('hidden', !puedoEditar() && !soyOperador());
   document.getElementById('nav-nomina').classList.toggle('hidden', !puedoEditar() && !soyOperador());
+  document.getElementById('nav-centros').classList.toggle('hidden', !soyAdmin() && !puedoEditar());
   document.getElementById('nav-usuarios').classList.toggle('hidden', !soyAdmin());
   document.getElementById('nav-smtp').classList.toggle('hidden', !soyAdmin());
   document.getElementById('nav-backup').classList.toggle('hidden', !soyAdmin());
@@ -1415,13 +1436,15 @@ async function iniciarApp() {
 // ═══════════════════════════════════════════════════
 async function loadAll() {
   try {
-    const promesas = [GET('/api/empleados'), GET('/api/nominas'), GET('/api/registros')];
+    const promesas = [GET('/api/empleados'), GET('/api/nominas'), GET('/api/registros'), GET('/api/centros')];
     if (soyAdmin()) promesas.push(GET('/api/usuarios'));
     const results = await Promise.all(promesas);
     empleados = results[0] || [];
     nominas   = results[1] || [];
     registros = results[2] || [];
-    if (soyAdmin()) usuarios = results[3] || [];
+    centros   = results[3] || [];
+    if (soyAdmin()) usuarios = results[4] || [];
+    poblarSelectsCentros();
   } catch { showToast('Error cargando datos.','error'); }
 }
 
@@ -1471,6 +1494,7 @@ async function navigate(page) {
   if (page==='registro')   populateRegistroSelects();
   if (page==='reportes')   { populateReportFilters(); renderReporte(); }
   if (page==='usuarios')   renderUsuarios();
+  if (page==='centros')    renderCentros();
   if (page==='smtp')       cargarSmtp();
   if (page==='backup')     { initBackupListeners(); cargarUltimoBackup(); }
   if (page==='personalizacion') { cargarLogoPreview(); }
@@ -1775,20 +1799,21 @@ function renderDashboard() {
   });
 
   // ── 3. Horas por sede (barras horizontales)
-  const sedeNames = { Itagui:'Itagüí', Bogota:'Bogotá', Cartagena:'Cartagena' };
-  const sedes     = { Itagui:0, Bogota:0, Cartagena:0 };
+  const sedesMap = {};
   registros.forEach(r => {
     const emp  = empleados.find(e => e.id===r.empleadoId);
     const sede = r.sede || emp?.sede || '';
-    if (sedes[sede]!==undefined) sedes[sede] += parseFloat(r.horas||0);
+    if (sede) sedesMap[sede] = (sedesMap[sede]||0) + parseFloat(r.horas||0);
   });
+  const sedesLabels = Object.keys(sedesMap);
+  const chartColors = [C.blue, C.green, C.purple, C.orange, C.yellow, C.red];
   crearOActualizar('chart-sede', {
     type: 'bar',
     data: {
-      labels: Object.keys(sedes).map(s => sedeNames[s]||s),
-      datasets: [{ label:'Horas', data: Object.values(sedes).map(h=>parseFloat(h.toFixed(1))),
-        backgroundColor: [C.blue+'cc', C.green+'cc', C.purple+'cc'],
-        borderColor:     [C.blue,      C.green,      C.purple],
+      labels: sedesLabels,
+      datasets: [{ label:'Horas', data: sedesLabels.map(s=>parseFloat((sedesMap[s]||0).toFixed(1))),
+        backgroundColor: sedesLabels.map((_,i) => chartColors[i % chartColors.length]+'cc'),
+        borderColor:     sedesLabels.map((_,i) => chartColors[i % chartColors.length]),
         borderWidth:1, borderRadius:8 }]
     },
     options: { ...baseOpts, indexAxis:'y',
@@ -1844,8 +1869,7 @@ function renderDashboard() {
 function actualizarSedeReg() {
   const empId = document.getElementById('reg-empleado').value;
   const emp   = empleados.find(e => e.id === empId);
-  const sedeNames = { Itagui: 'Itagüí', Bogota: 'Bogotá', Cartagena: 'Cartagena' };
-  document.getElementById('reg-sede').value = emp ? (sedeNames[emp.sede] || emp.sede || '—') : '';
+  document.getElementById('reg-sede').value = emp ? (emp.sede || '—') : '';
 }
 // Cerrar dropdown al hacer clic fuera
 document.addEventListener('click', function(e) {
@@ -1859,14 +1883,13 @@ function filtrarEmpleados() {
   const q   = document.getElementById('reg-emp-search').value.toLowerCase();
   const dd  = document.getElementById('reg-emp-dropdown');
   const lista = empleados.filter(e => !q || e.nombre.toLowerCase().includes(q) || (e.cargo||'').toLowerCase().includes(q));
-  const sedeNames = { Itagui: 'Itagüí', Bogota: 'Bogotá', Cartagena: 'Cartagena' };
   dd.innerHTML = lista.length
     ? lista.map(e => `<div
         onmousedown="seleccionarEmpleado('${e.id}','${e.nombre.replace(/'/g,"&#39;")}')"
         style="padding:10px 14px;cursor:pointer;font-size:13px;border-bottom:1px solid var(--border);"
         onmouseover="this.style.background='var(--border)'" onmouseout="this.style.background=''">
         <strong>${e.nombre}</strong>
-        <span style="color:var(--muted);margin-left:8px;font-size:12px;">${e.cargo||''} · 📍${sedeNames[e.sede]||e.sede||''}</span>
+        <span style="color:var(--muted);margin-left:8px;font-size:12px;">${e.cargo||''} · 📍${e.sede||''}</span>
       </div>`).join('')
     : `<div style="padding:12px 14px;color:var(--muted);font-size:13px;">Sin resultados</div>`;
   dd.style.display = 'block';
@@ -2031,7 +2054,7 @@ function abrirModalEmpleado(id=null) {
     document.getElementById('emp-depto').value=e.departamento;
     document.getElementById('emp-email').value=e.email||'';
     document.getElementById('emp-tel').value=e.telefono||'';
-    document.getElementById('emp-sede').value=e.sede||'Itagui';
+    document.getElementById('emp-sede').value=e.sede||'';
   } else {
     ['emp-nombre','emp-cedula','emp-cargo','emp-depto','emp-email','emp-tel'].forEach(i=>document.getElementById(i).value='');
     document.getElementById('emp-sede').value='';
@@ -2242,7 +2265,6 @@ function seleccionarNominaRpt(id, nombre) {
 function filtrarEmpleadosRpt() {
   const q  = document.getElementById('rpt-emp-search').value.toLowerCase();
   const dd = document.getElementById('rpt-emp-dropdown');
-  const sedeNames = { Itagui: 'Itagüí', Bogota: 'Bogotá', Cartagena: 'Cartagena' };
   const lista = empleados.filter(e => !q || e.nombre.toLowerCase().includes(q) || (e.cargo||'').toLowerCase().includes(q));
   const opTodos = `<div onmousedown="seleccionarEmpleadoRpt('','')"
       style="padding:10px 14px;cursor:pointer;font-size:13px;border-bottom:1px solid var(--border);color:var(--muted);"
@@ -2255,7 +2277,7 @@ function filtrarEmpleadosRpt() {
         style="padding:10px 14px;cursor:pointer;font-size:13px;border-bottom:1px solid var(--border);"
         onmouseover="this.style.background='var(--border)'" onmouseout="this.style.background=''">
         <strong>${e.nombre}</strong>
-        <span style="color:var(--muted);margin-left:8px;font-size:12px;">${e.cargo||''} · 📍${sedeNames[e.sede]||e.sede||''}</span>
+        <span style="color:var(--muted);margin-left:8px;font-size:12px;">${e.cargo||''} · 📍${e.sede||''}</span>
       </div>`).join('')
     : `<div style="padding:12px 14px;color:var(--muted);font-size:13px;">Sin resultados</div>`);
   dd.style.display = 'block';
@@ -2271,7 +2293,6 @@ function renderReporte() {
   const empId=document.getElementById('rpt-empleado').value;
   const nomId=document.getElementById('rpt-nomina').value;
   const sedeId=document.getElementById('rpt-sede').value;
-  const sedeNames = { Itagui: 'Itagüí', Bogota: 'Bogotá', Cartagena: 'Cartagena' };
   let data=[...registros];
   if(empId)  data=data.filter(r=>r.empleadoId===empId);
   if(nomId)  data=data.filter(r=>r.nominaId===nomId);
@@ -2292,7 +2313,7 @@ function renderReporte() {
   if (!data.length) { tbody.innerHTML=`<tr><td colspan="12"><div class="empty"><div class="empty-icon">📊</div><div class="empty-text">Sin datos para los filtros seleccionados</div></div></td></tr>`; return; }
   tbody.innerHTML=data.map(r=>{
     const emp=empleados.find(e=>e.id===r.empleadoId), nom=nominas.find(n=>n.id===r.nominaId);
-    const sedeTxt = sedeNames[r.sede||emp?.sede||'']||r.sede||emp?.sede||'—';
+    const sedeTxt = r.sede||emp?.sede||'—';
     return `<tr><td><strong>${emp?emp.nombre:'—'}</strong></td><td>${emp?emp.cargo:'—'}</td>
       <td><span style="font-size:12px;color:var(--accent)">📍 ${sedeTxt}</span></td>
       <td>${nom?nom.nombre:'—'}</td><td>${fmt(r.fecha)}</td>
@@ -2311,6 +2332,127 @@ function renderReporte() {
 // ═══════════════════════════════════════════════════
 // USUARIOS
 // ═══════════════════════════════════════════════════
+
+// ═══════════════════════════════════════════════════
+// CENTROS DE OPERACIÓN
+// ═══════════════════════════════════════════════════
+
+function poblarSelectsCentros() {
+  const activos = centros.filter(c => c.activo);
+  ['emp-sede', 'usr-sede', 'fil-sede', 'rpt-sede'].forEach(id => {
+    const sel = document.getElementById(id);
+    if (!sel) return;
+    const esFilter = id.startsWith('fil-') || id.startsWith('rpt-');
+    const val = sel.value;
+    sel.innerHTML = esFilter
+      ? '<option value="">Todos los centros</option>'
+      : '<option value="">Seleccionar centro...</option>';
+    activos.forEach(c => {
+      const opt = document.createElement('option');
+      opt.value = c.nombre;
+      opt.textContent = c.nombre;
+      sel.appendChild(opt);
+    });
+    if (val) sel.value = val;
+  });
+}
+
+function renderCentros() {
+  const tbody = document.getElementById('centros-body');
+  if (!tbody) return;
+  if (!centros.length) {
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:32px;">No hay centros registrados</td></tr>';
+    return;
+  }
+  const rows = [];
+  centros.forEach(function(c) {
+    const empsCount = empleados.filter(function(e){ return e.sede === c.nombre; }).length;
+    const estadoBadge = c.activo
+      ? '<span style="background:rgba(79,190,150,0.15);color:#4fbe96;border-radius:6px;padding:2px 10px;font-size:11px;font-weight:700;">ACTIVO</span>'
+      : '<span style="background:rgba(247,97,79,0.12);color:var(--danger);border-radius:6px;padding:2px 10px;font-size:11px;font-weight:700;">INACTIVO</span>';
+    const fecha = c.creado ? new Date(c.creado).toLocaleDateString('es-CO') : '—';
+    const puedeEliminar = empsCount === 0 && soyAdmin();
+    let acciones = '';
+    if (puedoEditar() || soyAdmin()) {
+      acciones += '<button class="btn btn-secondary btn-sm centro-btn-editar" data-id="' + c.id + '">✏️ Editar</button> ';
+    }
+    if (puedeEliminar) {
+      acciones += '<button class="btn btn-sm centro-btn-eliminar" data-id="' + c.id + '" data-nombre="' + c.nombre.replace(/"/g, '&quot;') + '" style="background:rgba(247,97,79,0.1);color:var(--danger);border:1px solid rgba(247,97,79,0.3);">🗑 Eliminar</button>';
+    }
+    rows.push(
+      '<tr>' +
+      '<td style="font-weight:600;">' + c.nombre + '</td>' +
+      '<td>' + estadoBadge + '</td>' +
+      '<td style="color:var(--muted);font-size:13px;">' + fecha + '</td>' +
+      '<td style="color:var(--muted);">' + empsCount + ' empleado' + (empsCount !== 1 ? 's' : '') + '</td>' +
+      '<td><div style="display:flex;gap:8px;">' + acciones + '</div></td>' +
+      '</tr>'
+    );
+  });
+  tbody.innerHTML = rows.join('');
+
+  // Event listeners via data-attributes — evita problemas de escaping en onclick
+  tbody.querySelectorAll('.centro-btn-editar').forEach(function(btn) {
+    btn.addEventListener('click', function() { editarCentro(this.dataset.id); });
+  });
+  tbody.querySelectorAll('.centro-btn-eliminar').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      const nombre = this.dataset.nombre;
+      if (!confirm('¿Eliminar el centro "' + nombre + '"?\n\nEsta acción no se puede deshacer.')) return;
+      eliminarCentro(this.dataset.id, nombre);
+    });
+  });
+}
+
+function abrirModalCentro() {
+  document.getElementById('centro-id').value = '';
+  document.getElementById('centro-nombre').value = '';
+  document.getElementById('centro-activo-group').style.display = 'none';
+  document.getElementById('modal-centro-title').textContent = 'Nuevo Centro de Operación';
+  document.getElementById('modal-centro').classList.add('open');
+}
+
+function editarCentro(id) {
+  const c = centros.find(x => x.id === id);
+  if (!c) return;
+  document.getElementById('centro-id').value = id;
+  document.getElementById('centro-nombre').value = c.nombre;
+  document.getElementById('centro-activo').value = c.activo ? '1' : '0';
+  document.getElementById('centro-activo-group').style.display = '';
+  document.getElementById('modal-centro-title').textContent = 'Editar Centro de Operación';
+  document.getElementById('modal-centro').classList.add('open');
+}
+
+async function guardarCentro() {
+  const id     = document.getElementById('centro-id').value;
+  const nombre = document.getElementById('centro-nombre').value.trim();
+  const activo = document.getElementById('centro-activo').value;
+  if (!nombre) { showToast('El nombre es requerido','error'); return; }
+  const body = { nombre, activo: activo === '1' };
+  try {
+    const res = id
+      ? await PUT('/api/centros/' + id, body)
+      : await POST('/api/centros', body);
+    if (!res) return;
+    cerrarModal('modal-centro');
+    showToast(id ? 'Centro actualizado' : 'Centro creado', 'success');
+    centros = await GET('/api/centros') || [];
+    poblarSelectsCentros();
+    renderCentros();
+  } catch(e) { showToast(e.message, 'error'); }
+}
+
+
+async function eliminarCentro(id, nombre) {
+  try {
+    await DEL('/api/centros/' + id);
+    showToast('Centro eliminado', 'success');
+    centros = await GET('/api/centros') || [];
+    poblarSelectsCentros();
+    renderCentros();
+  } catch(e) { showToast(e.message, 'error'); }
+}
+
 function renderUsuarios() {
   const tbody=document.getElementById('usuarios-body');
   if (!usuarios.length) { tbody.innerHTML=`<tr><td colspan="6"><div class="empty"><div class="empty-icon">🔐</div><div class="empty-text">No hay usuarios</div></div></td></tr>`; return; }
@@ -2390,7 +2532,7 @@ function abrirModalUsuario(id=null) {
     document.getElementById('usr-nombre').value=u.nombre;
     document.getElementById('usr-email').value=u.email;
     document.getElementById('usr-rol').value=u.rol;
-    document.getElementById('usr-sede').value=u.sede||'Itagui';
+    document.getElementById('usr-sede').value=u.sede||'';
     document.getElementById('usr-activo').value=u.activo?'1':'0';
     document.getElementById('usr-password').value='';
     document.getElementById('usr-password').placeholder='Dejar vacío para no cambiar';
@@ -2645,10 +2787,10 @@ async function cargarLogoPreview() {
       const url  = URL.createObjectURL(blob);
       container.innerHTML = `<img src="${url}" style="max-width:180px;max-height:50px;object-fit:contain;" alt="Logo">`;
     } else {
-      container.innerHTML = `<div class="logo" style="pointer-events:none;">Horix<span>.</span></div>`;
+      container.innerHTML = `<div class="logo" style="pointer-events:none;">HorasExtra<span>.</span></div>`;
     }
   } catch {
-    container.innerHTML = `<div class="logo" style="pointer-events:none;">Horix<span>.</span></div>`;
+    container.innerHTML = `<div class="logo" style="pointer-events:none;">HorasExtra<span>.</span></div>`;
   }
 }
 
@@ -2723,7 +2865,7 @@ async function aplicarLogo() {
         el.innerHTML = `<img src="${url}" style="max-width:160px;max-height:44px;object-fit:contain;" alt="Logo">`;
       });
     } else {
-      logoEls.forEach(el => { el.innerHTML = 'Horix<span>.</span>'; });
+      logoEls.forEach(el => { el.innerHTML = 'HorasExtra<span>.</span>'; });
     }
   } catch {}
 }
