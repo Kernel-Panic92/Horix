@@ -20,6 +20,7 @@ Sistema web para la gestión y control de horas extra del personal, desarrollado
 - Node.js >= 18.0.0
 - Linux (Ubuntu 20.04+ / Debian)
 - PM2 (instalado automáticamente por el instalador)
+- Nginx (La version mas reciente)
 
 ## Instalación
 
