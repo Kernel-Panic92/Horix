@@ -2,45 +2,64 @@
 
 Sistema web para la gestión y control de horas extra del personal, desarrollado para el área de Recursos Humanos.
 
-## Características
-
-- Registro de horas extra por empleado, tipo y período de nómina
-- Aprobación y seguimiento de registros
-- Gestión de **Centros de Operación** (sedes) dinámica — configurable desde la interfaz
-- Dashboard con widgets interactivos (draggable, redimensionables)
-- Reportes y exportación a CSV
-- Backups automáticos locales y en red (NAS/SMB)
-- Gestión de usuarios con roles: Admin, RRHH, Consulta, Operador
-- Soporte para recuperación de contraseña vía correo
-- Tema claro / oscuro
-- Personalización de logo corporativo
-
 ## Requisitos
 
-- Node.js >= 18.0.0
-- Linux (Ubuntu 20.04+ / Debian)
-- PM2 (instalado automáticamente por el instalador)
-- Nginx (La version mas reciente)
+| Componente | Versión mínima | Notas |
+|-----------|---------------|-------|
+| Node.js   | 18.0.0        | Instalado automáticamente por el instalador |
+| PM2       | cualquiera    | Instalado automáticamente por el instalador |
+| Nginx     | cualquiera    | Solo si se configura HTTPS. `sudo apt install nginx -y` |
+| Linux     | Ubuntu 20.04+ / Debian 11+ | |
 
 ## Instalación
 
 ```bash
-git clone https://github.com/Kernel-Panic92/Horix.git
-cd Horix
+git clone git@github.com:Kernel-Panic92/Horix.git horas-extra
+cd horas-extra
 chmod +x install.sh
 ./install.sh
 ```
 
 El instalador configura interactivamente:
-- Puerto del servidor
+
+- Puerto del servidor (default: 3000)
+- Nombre de la empresa
 - Email y contraseña del administrador
 - Centro de operación inicial
-- Backup en servidor NAS (opcional)
+- Backup local y en servidor NAS (opcional)
 - Cron de backup automático diario (opcional)
+- **HTTPS con Nginx** — dominio y puerto configurables (opcional)
+
+## Configuración HTTPS
+
+Si seleccionas HTTPS durante la instalación, el instalador:
+
+1. Instala Nginx si no está presente
+2. Genera un certificado SSL autofirmado válido por 10 años
+3. Configura Nginx como reverse proxy (HTTPS → Node.js)
+4. Exporta el certificado a `~/horix_cert.crt` para distribuirlo a los clientes
+
+### Distribución del certificado en red con Active Directory
+
+**DNS interno** — Agrega un registro A en `dnsmgmt.msc`:
+```
+Zona: tudominio.local → Nuevo host (A)
+  Nombre: horix
+  IP: <IP del servidor>
+```
+
+**Certificado vía GPO** — En `gpmc.msc`:
+```
+Configuración del equipo → Directivas → Configuración de Windows
+  → Configuración de seguridad → Directivas de clave pública
+    → Entidades de certificación raíz de confianza → Importar → horix_cert.crt
+```
+
+Luego aplica con `gpupdate /force` en los equipos cliente.
 
 ## Configuración post-instalación
 
-1. Abre `http://<IP_SERVIDOR>:<PUERTO>` en el navegador
+1. Abre la URL del sistema en el navegador
 2. Inicia sesión con las credenciales definidas en el instalador
 3. Ve a **Configuración → Config. Correo** para configurar el servidor SMTP
 4. Ve a **Centros de Operación** para agregar las sedes de tu organización
@@ -54,35 +73,40 @@ El instalador configura interactivamente:
 | Consulta | Solo lectura |
 | Operador | Ver y registrar solo su centro |
 
-## Scripts útiles
+## Comandos útiles
 
 ```bash
 pm2 logs horix          # Ver logs en tiempo real
 pm2 restart horix       # Reiniciar servidor
 pm2 stop horix          # Detener servidor
 ./backup_horasextra.sh  # Ejecutar backup manual
+sudo crontab -l         # Ver tareas programadas
 ```
 
 ## Estructura del proyecto
 
 ```
 horix/
-├── server.js                     # Backend — Express + SQLite
+├── server.js                       # Backend — Express + SQLite
 ├── public/
-│   ├── index.html                # Frontend SPA
-│   └── reset-password.html       # Página de reset de contraseña
-├── install.sh                    # Instalador interactivo
-├── backup_horasextra_template.sh # Plantilla de backup (generada por install.sh)
+│   ├── index.html                  # Frontend SPA
+│   └── reset-password.html         # Página de reset de contraseña
+├── install.sh                      # Instalador interactivo
+├── backup_horasextra_template.sh   # Plantilla de backup (el instalador genera el .sh real)
 ├── package.json
 └── LICENSE
 ```
 
+> **Nota:** `backup_horasextra.sh` (el script generado tras la instalación) contiene credenciales
+> del cliente y está excluido del repositorio vía `.gitignore`. Solo la plantilla se versiona.
+
 ## Seguridad
 
-- Las contraseñas se almacenan con bcrypt
-- La contraseña SMTP se cifra con AES-256-GCM
-- Los tokens de sesión tienen expiración configurable
-- El script de backup generado (`backup_horasextra.sh`) contiene credenciales del cliente y está excluido del repositorio vía `.gitignore`
+- Contraseñas almacenadas con bcrypt
+- Contraseña SMTP cifrada con AES-256-GCM
+- Tokens de sesión con expiración
+- HTTPS mediante Nginx como reverse proxy
+- Script de backup con credenciales generado localmente, nunca versionado
 
 ## Licencia
 
