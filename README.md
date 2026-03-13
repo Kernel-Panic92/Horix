@@ -22,7 +22,7 @@ Sistema web para registro, seguimiento y reporte de horas extra del personal. De
 ## Instalación rápida
 
 ```bash
-git clone https://github.com/TU_USUARIO/horix.git
+git clone https://github.com/Kernel-Panic92/horix.git
 cd horix
 chmod +x install.sh
 ./install.sh
