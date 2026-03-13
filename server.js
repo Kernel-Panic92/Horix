@@ -12,7 +12,7 @@ const upload     = multer({ storage: multer.memoryStorage(), limits: { fileSize:
 
 const BCRYPT_ROUNDS = 12;
 // Clave AES para cifrar smtp_password (32 bytes desde variable de entorno o fallback)
-const AES_KEY = crypto.scryptSync(process.env.HE_SECRET || 'horasextra_aes_key_vitamar_2025', 'he_salt_aes', 32);
+const AES_KEY = crypto.scryptSync(process.env.HE_SECRET || 'horasextra_aes_key_default_2025', 'he_salt_aes', 32);
 
 const app = express();
 const db  = new Database('horas_extra.db');
@@ -21,7 +21,7 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static('public'));
 
-const SEDES = ['Itagui', 'Bogota', 'Cartagena'];
+// Centros de operación — gestionados dinámicamente en la BD
 
 // ─────────────────────────────────────────────
 // TABLAS
@@ -33,7 +33,7 @@ db.exec(`
     email     TEXT NOT NULL UNIQUE,
     password  TEXT NOT NULL,
     rol       TEXT NOT NULL DEFAULT 'consulta',
-    sede      TEXT NOT NULL DEFAULT 'Itagui',
+    sede      TEXT NOT NULL DEFAULT 'Principal',
     activo    INTEGER NOT NULL DEFAULT 1,
     creado    TEXT NOT NULL
   );
@@ -57,7 +57,7 @@ db.exec(`
     cedula        TEXT NOT NULL,
     cargo         TEXT NOT NULL,
     departamento  TEXT NOT NULL,
-    sede          TEXT NOT NULL DEFAULT 'Itagui',
+    sede          TEXT NOT NULL DEFAULT 'Principal',
     email         TEXT,
     telefono      TEXT
   );
@@ -81,12 +81,18 @@ db.exec(`
     concepto    TEXT NOT NULL DEFAULT '',
     observaciones TEXT NOT NULL DEFAULT '',
     transporte    REAL NOT NULL DEFAULT 0,
-    sede        TEXT NOT NULL DEFAULT 'Itagui'
+    sede        TEXT NOT NULL DEFAULT 'Principal'
   );
   CREATE TABLE IF NOT EXISTS usuario_empleados (
     usuarioId  TEXT NOT NULL,
     empleadoId TEXT NOT NULL,
     PRIMARY KEY (usuarioId, empleadoId)
+  );
+  CREATE TABLE IF NOT EXISTS centros (
+    id      TEXT PRIMARY KEY,
+    nombre  TEXT NOT NULL UNIQUE,
+    activo  INTEGER NOT NULL DEFAULT 1,
+    creado  TEXT NOT NULL
   );
 `);
 
@@ -95,22 +101,22 @@ db.exec(`
 // ─────────────────────────────────────────────
 try { db.exec(`ALTER TABLE registros  ADD COLUMN concepto TEXT NOT NULL DEFAULT ''`);  } catch {}
 try { db.exec(`ALTER TABLE registros  ADD COLUMN creadoPor TEXT NOT NULL DEFAULT ''`); } catch {}
-try { db.exec(`ALTER TABLE registros  ADD COLUMN sede TEXT NOT NULL DEFAULT 'Itagui'`); } catch {}
+try { db.exec(`ALTER TABLE registros  ADD COLUMN sede TEXT NOT NULL DEFAULT 'Principal'`); } catch {}
 try { db.exec(`ALTER TABLE registros  ADD COLUMN observaciones TEXT NOT NULL DEFAULT ''`); } catch {}
 try { db.exec(`ALTER TABLE registros  ADD COLUMN transporte REAL NOT NULL DEFAULT 0`); } catch {}
-try { db.exec(`ALTER TABLE empleados  ADD COLUMN sede TEXT NOT NULL DEFAULT 'Itagui'`); } catch {}
-try { db.exec(`ALTER TABLE usuarios   ADD COLUMN sede TEXT NOT NULL DEFAULT 'Itagui'`); } catch {}
+try { db.exec(`ALTER TABLE empleados  ADD COLUMN sede TEXT NOT NULL DEFAULT 'Principal'`); } catch {}
+try { db.exec(`ALTER TABLE usuarios   ADD COLUMN sede TEXT NOT NULL DEFAULT 'Principal'`); } catch {}
 try { db.exec(`ALTER TABLE usuarios   ADD COLUMN cambio_password INTEGER NOT NULL DEFAULT 0`); } catch {}
 
 // Configuración SMTP por defecto
 const smtpDefaults = {
-  smtp_host:      'vitamar-com-co.fortimailcloud.com',
+  smtp_host:      '',
   smtp_puerto:    '587',
   smtp_tls:       'true',
-  smtp_usuario:   'noreply@vitamar.com.co',
-  smtp_password:  encryptSmtp('u9Eb!uEqq8eHTpB'),
-  smtp_remitente: 'HorasExtra RRHH <noreply@vitamar.com.co>',
-  reset_asunto:   'Recuperación de contraseña — HorasExtra',
+  smtp_usuario:   '',
+  smtp_password:  '',
+  smtp_remitente: 'Horix RRHH <noreply@tuempresa.com>',
+  reset_asunto:   'Recuperación de contraseña — Horix',
   reset_cuerpo:   'Hola {nombre},\n\nRecibimos una solicitud para restablecer tu contraseña.\n\nHaz clic en el siguiente enlace (válido por 30 minutos):\n{enlace}\n\nSi no solicitaste esto, ignora este correo.\n\nSaludos,\nEquipo RRHH'
 };
 for (const [clave, valor] of Object.entries(smtpDefaults)) {
@@ -202,13 +208,21 @@ async function enviarCorreo(para, asunto, cuerpo) {
   }
 }
 
-// Admin por defecto
+// Centros y admin por defecto
 (async () => {
+  // Seed centros
+  const totalCentros = db.prepare('SELECT COUNT(*) as n FROM centros').get().n;
+  if (totalCentros === 0) {
+    db.prepare('INSERT INTO centros (id,nombre,activo,creado) VALUES (?,?,1,?)').run(uid(), 'Principal', new Date().toISOString());
+    console.log('🏢 Centro de operación inicial creado: Principal');
+  }
+  // Seed admin
   const totalUsuarios = db.prepare('SELECT COUNT(*) as c FROM usuarios').get();
   if (totalUsuarios.c === 0) {
+    const primerCentro = db.prepare('SELECT nombre FROM centros LIMIT 1').get()?.nombre || 'Principal';
     db.prepare('INSERT INTO usuarios (id,nombre,email,password,rol,sede,activo,creado) VALUES (?,?,?,?,?,?,?,?)').run(
       uid(), 'Administrador', 'admin@empresa.com',
-      await hashPassword('Admin2025!'), 'admin', 'Itagui', 1, new Date().toISOString()
+      await hashPassword('Admin2025!'), 'admin', primerCentro, 1, new Date().toISOString()
     );
     console.log('👤 Usuario admin creado: admin@empresa.com / Admin2025!');
   }
@@ -355,9 +369,42 @@ app.post('/api/configuracion/test', soloAdmin, async (req, res) => {
 });
 
 // ─────────────────────────────────────────────
-// SEDES
+// CENTROS DE OPERACIÓN
 // ─────────────────────────────────────────────
-app.get('/api/sedes', todosRoles, (req, res) => res.json(SEDES));
+app.get('/api/centros', todosRoles, (req, res) => {
+  res.json(db.prepare('SELECT * FROM centros ORDER BY nombre ASC').all());
+});
+
+app.post('/api/centros', adminRrhh, (req, res) => {
+  const { nombre } = req.body;
+  if (!nombre?.trim()) return res.status(400).json({ error: 'El nombre es requerido' });
+  const existe = db.prepare('SELECT id FROM centros WHERE nombre = ?').get(nombre.trim());
+  if (existe) return res.status(400).json({ error: 'Ya existe un centro con ese nombre' });
+  const id = uid();
+  db.prepare('INSERT INTO centros (id,nombre,activo,creado) VALUES (?,?,1,?)').run(id, nombre.trim(), new Date().toISOString());
+  res.json(db.prepare('SELECT * FROM centros WHERE id=?').get(id));
+});
+
+app.put('/api/centros/:id', adminRrhh, (req, res) => {
+  const { nombre, activo } = req.body;
+  if (!nombre?.trim()) return res.status(400).json({ error: 'El nombre es requerido' });
+  const existe = db.prepare('SELECT id FROM centros WHERE nombre = ? AND id != ?').get(nombre.trim(), req.params.id);
+  if (existe) return res.status(400).json({ error: 'Ya existe un centro con ese nombre' });
+  db.prepare('UPDATE centros SET nombre=?, activo=? WHERE id=?').run(nombre.trim(), activo?1:0, req.params.id);
+  res.json(db.prepare('SELECT * FROM centros WHERE id=?').get(req.params.id));
+});
+
+app.delete('/api/centros/:id', soloAdmin, (req, res) => {
+  const enUso = db.prepare("SELECT COUNT(*) as n FROM empleados WHERE sede=( SELECT nombre FROM centros WHERE id=?)").get(req.params.id);
+  if (enUso?.n > 0) return res.status(400).json({ error: 'No se puede eliminar: hay empleados asignados a este centro' });
+  db.prepare('DELETE FROM centros WHERE id=?').run(req.params.id);
+  res.json({ ok: true });
+});
+
+// Mantener /api/sedes como alias para compatibilidad
+app.get('/api/sedes', todosRoles, (req, res) => {
+  res.json(db.prepare("SELECT nombre FROM centros WHERE activo=1 ORDER BY nombre ASC").all().map(c => c.nombre));
+});
 
 // ─────────────────────────────────────────────
 // USUARIOS
@@ -371,7 +418,8 @@ app.post('/api/usuarios', soloAdmin, async (req, res) => {
   const errPass = validarPassword(password);
   if (errPass.length) return res.status(400).json({ error: 'Contraseña inválida: ' + errPass.join(', ') });
   if (!['admin','rrhh','consulta','operador'].includes(rol)) return res.status(400).json({ error: 'Rol inválido' });
-  if (!SEDES.includes(sede)) return res.status(400).json({ error: 'Sede inválida' });
+  const centroValido = db.prepare('SELECT id FROM centros WHERE nombre=? AND activo=1').get(sede);
+  if (!centroValido) return res.status(400).json({ error: 'Centro de operación inválido' });
   const existe = db.prepare('SELECT id FROM usuarios WHERE email = ?').get(email.toLowerCase().trim());
   if (existe) return res.status(400).json({ error: 'Ya existe un usuario con ese correo' });
   const id = uid();
@@ -404,7 +452,8 @@ app.put('/api/usuario_empleados/:id', soloAdmin, (req, res) => {
 app.put('/api/usuarios/:id', soloAdmin, async (req, res) => {
   const { nombre, email, rol, sede, activo, password } = req.body;
   if (!['admin','rrhh','consulta','operador'].includes(rol)) return res.status(400).json({ error: 'Rol inválido' });
-  if (!SEDES.includes(sede)) return res.status(400).json({ error: 'Sede inválida' });
+  const centroValido = db.prepare('SELECT id FROM centros WHERE nombre=? AND activo=1').get(sede);
+  if (!centroValido) return res.status(400).json({ error: 'Centro de operación inválido' });
   if (req.params.id === req.usuario.id && activo === 0) return res.status(400).json({ error: 'No puedes desactivarte a ti mismo' });
   if (password && password.trim() !== '') {
     const errPassU = validarPassword(password);
@@ -455,7 +504,7 @@ app.get('/api/empleados', todosRoles, (req, res) => {
     return res.json(db.prepare('SELECT * FROM empleados WHERE sede = ?').all(u.sede));
   }
   // RRHH: puede filtrar por sede con query param, si no trae todos
-  if (u.rol === 'rrhh' && req.query.sede && SEDES.includes(req.query.sede)) {
+  if (u.rol === 'rrhh' && req.query.sede) {
     return res.json(db.prepare('SELECT * FROM empleados WHERE sede = ?').all(req.query.sede));
   }
   res.json(db.prepare('SELECT * FROM empleados').all());
@@ -463,7 +512,8 @@ app.get('/api/empleados', todosRoles, (req, res) => {
 
 app.post('/api/empleados', adminRrhh, (req, res) => {
   const { nombre, cedula, cargo, departamento, sede, email, telefono } = req.body;
-  if (!SEDES.includes(sede)) return res.status(400).json({ error: 'Sede inválida' });
+  const centroValido = db.prepare('SELECT id FROM centros WHERE nombre=? AND activo=1').get(sede);
+  if (!centroValido) return res.status(400).json({ error: 'Centro de operación inválido' });
   const id = uid();
   db.prepare('INSERT INTO empleados (id,nombre,cedula,cargo,departamento,sede,email,telefono) VALUES (?,?,?,?,?,?,?,?)').run(
     id, nombre, cedula, cargo, departamento, sede, email||'', telefono||''
@@ -473,7 +523,8 @@ app.post('/api/empleados', adminRrhh, (req, res) => {
 
 app.put('/api/empleados/:id', adminRrhh, (req, res) => {
   const { nombre, cedula, cargo, departamento, sede, email, telefono } = req.body;
-  if (!SEDES.includes(sede)) return res.status(400).json({ error: 'Sede inválida' });
+  const centroValido = db.prepare('SELECT id FROM centros WHERE nombre=? AND activo=1').get(sede);
+  if (!centroValido) return res.status(400).json({ error: 'Centro de operación inválido' });
   db.prepare('UPDATE empleados SET nombre=?,cedula=?,cargo=?,departamento=?,sede=?,email=?,telefono=? WHERE id=?')
     .run(nombre, cedula, cargo, departamento, sede, email||'', telefono||'', req.params.id);
   res.json({ ok: true });
@@ -516,7 +567,7 @@ app.get('/api/registros', todosRoles, (req, res) => {
     return res.json(db.prepare(base + ' WHERE r.creadoPor = ? ORDER BY r.fecha DESC').all(u.id));
   }
   // RRHH: puede filtrar por sede
-  if (u.rol === 'rrhh' && req.query.sede && SEDES.includes(req.query.sede)) {
+  if (u.rol === 'rrhh' && req.query.sede) {
     return res.json(db.prepare(base + `
       JOIN empleados e ON r.empleadoId = e.id
       WHERE e.sede = ? ORDER BY r.fecha DESC
@@ -536,7 +587,7 @@ app.post('/api/registros', adminRrhhOp, (req, res) => {
     }
   }
   const emp = db.prepare('SELECT sede FROM empleados WHERE id = ?').get(empleadoId);
-  const sede = emp ? emp.sede : 'Itagui';
+  const sede = emp ? emp.sede : 'Principal';
   const id = uid();
   db.prepare('INSERT INTO registros (id,empleadoId,nominaId,fecha,horas,tipo,aprobador,motivo,creado,concepto,sede,creadoPor,observaciones,transporte) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)')
     .run(id, empleadoId, nominaId, fecha, horas, tipo, aprobador, motivo, new Date().toISOString(), concepto||'', sede, req.usuario.id, observaciones||'', parseFloat(transporte||0));
@@ -628,7 +679,7 @@ app.post('/api/restore', soloAdmin, upload.single('backup'), (req, res) => {
       if (data.empleados?.length) {
         db.prepare('DELETE FROM empleados').run();
         const ins = db.prepare('INSERT OR REPLACE INTO empleados (id,nombre,cedula,cargo,departamento,sede,email,telefono) VALUES (?,?,?,?,?,?,?,?)');
-        for (const e of data.empleados) ins.run(e.id,e.nombre,e.cedula,e.cargo,e.departamento,e.sede||'Itagui',e.email||'',e.telefono||'');
+        for (const e of data.empleados) ins.run(e.id,e.nombre,e.cedula,e.cargo,e.departamento,e.sede||'Principal',e.email||'',e.telefono||'');
       }
       // Nóminas
       if (data.nominas?.length) {
@@ -640,7 +691,7 @@ app.post('/api/restore', soloAdmin, upload.single('backup'), (req, res) => {
       if (data.registros?.length) {
         db.prepare('DELETE FROM registros').run();
         const ins = db.prepare('INSERT OR REPLACE INTO registros (id,empleadoId,nominaId,fecha,horas,tipo,aprobador,motivo,creado,concepto,sede,creadoPor,observaciones,transporte) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)');
-        for (const r of data.registros) ins.run(r.id,r.empleadoId,r.nominaId,r.fecha,r.horas,r.tipo,r.aprobador,r.motivo,r.creado,r.concepto||'',r.sede||'Itagui',r.creadoPor||'',r.observaciones||'',parseFloat(r.transporte||0));
+        for (const r of data.registros) ins.run(r.id,r.empleadoId,r.nominaId,r.fecha,r.horas,r.tipo,r.aprobador,r.motivo,r.creado,r.concepto||'',r.sede||'Principal',r.creadoPor||'',r.observaciones||'',parseFloat(r.transporte||0));
       }
       // Asignaciones usuario-empleados
       if (data.usuario_empleados?.length) {
@@ -654,7 +705,7 @@ app.post('/api/restore', soloAdmin, upload.single('backup'), (req, res) => {
         for (const u of data.usuarios) {
           if (u.id === req.usuario.id) continue; // proteger sesión actual
           if (!u.password) { console.warn('Restore: usuario sin password omitido:', u.email); continue; }
-          insUser.run(u.id, u.nombre, u.email, u.password, u.rol, u.sede||'Itagui', u.activo??1, u.cambio_password??0, u.creado);
+          insUser.run(u.id, u.nombre, u.email, u.password, u.rol, u.sede||'Principal', u.activo??1, u.cambio_password??0, u.creado);
         }
       }
     })();
@@ -675,7 +726,7 @@ app.post('/api/backup/alerta', soloAdmin, async (req, res) => {
   const fecha = new Date().toLocaleString('es-CO', { timeZone: 'America/Bogota' });
   try {
     await enviarCorreo(
-      'coordinadorsistemas@vitamar.com.co',
+      adminEmail,
       `⚠ Error en Backup Automático — HorasExtra ${fecha}`,
       `Hola,
 
@@ -691,7 +742,7 @@ Por favor revisa el log en el servidor:
   cat /var/log/backup_horasextra.log
 
 Saludos,
-Sistema HorasExtra — Vitamar S.A.`
+Sistema Horix`
     );
     res.json({ ok: true });
   } catch(e) {
