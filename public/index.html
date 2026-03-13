@@ -2787,10 +2787,10 @@ async function cargarLogoPreview() {
       const url  = URL.createObjectURL(blob);
       container.innerHTML = `<img src="${url}" style="max-width:180px;max-height:50px;object-fit:contain;" alt="Logo">`;
     } else {
-      container.innerHTML = `<div class="logo" style="pointer-events:none;">HorasExtra<span>.</span></div>`;
+      container.innerHTML = `<div class="logo" style="pointer-events:none;">HORIX<span>.</span></div>`;
     }
   } catch {
-    container.innerHTML = `<div class="logo" style="pointer-events:none;">HorasExtra<span>.</span></div>`;
+    container.innerHTML = `<div class="logo" style="pointer-events:none;">HORIX<span>.</span></div>`;
   }
 }
 
@@ -2837,7 +2837,7 @@ async function guardarLogo() {
 }
 
 async function eliminarLogo() {
-  if (!confirm('¿Eliminar el logo y volver al texto HorasExtra.?')) return;
+  if (!confirm('¿Eliminar el logo y volver al nombre por defecto?')) return;
   try {
     const res  = await fetch('/api/logo', { method: 'DELETE', headers: { 'Authorization': 'Bearer ' + sesion.token } });
     const data = await res.json();
@@ -2865,7 +2865,7 @@ async function aplicarLogo() {
         el.innerHTML = `<img src="${url}" style="max-width:160px;max-height:44px;object-fit:contain;" alt="Logo">`;
       });
     } else {
-      logoEls.forEach(el => { el.innerHTML = 'HorasExtra<span>.</span>'; });
+      logoEls.forEach(el => { el.innerHTML = 'HORIX<span>.</span>'; });
     }
   } catch {}
 }
