@@ -9,19 +9,13 @@ const multer     = require('multer');
 const AdmZip     = require('adm-zip');
 const bcrypt     = require('bcrypt');
 const upload     = multer({ storage: multer.memoryStorage(), limits: { fileSize: 20 * 1024 * 1024 } });
-
 const BCRYPT_ROUNDS = 12;
-// Clave AES para cifrar smtp_password (32 bytes desde variable de entorno o fallback)
 const AES_KEY = crypto.scryptSync(process.env.HE_SECRET || 'horasextra_aes_key_default_2025', 'he_salt_aes', 32);
-
 const app = express();
 const db  = new Database('horas_extra.db');
-
 app.use(cors());
 app.use(express.json());
 app.use(express.static('public'));
-
-// Centros de operación — gestionados dinámicamente en la BD
 
 // ─────────────────────────────────────────────
 // TABLAS
@@ -69,19 +63,19 @@ db.exec(`
     fin     TEXT NOT NULL
   );
   CREATE TABLE IF NOT EXISTS registros (
-    id          TEXT PRIMARY KEY,
-    empleadoId  TEXT NOT NULL,
-    nominaId    TEXT NOT NULL,
-    fecha       TEXT NOT NULL,
-    horas       REAL NOT NULL,
-    tipo        TEXT NOT NULL,
-    aprobador   TEXT NOT NULL,
-    motivo      TEXT NOT NULL,
-    creado      TEXT NOT NULL,
-    concepto    TEXT NOT NULL DEFAULT '',
+    id            TEXT PRIMARY KEY,
+    empleadoId    TEXT NOT NULL,
+    nominaId      TEXT NOT NULL,
+    fecha         TEXT NOT NULL,
+    horas         REAL NOT NULL,
+    tipo          TEXT NOT NULL,
+    aprobador     TEXT NOT NULL,
+    motivo        TEXT NOT NULL,
+    creado        TEXT NOT NULL,
+    concepto      TEXT NOT NULL DEFAULT '',
     observaciones TEXT NOT NULL DEFAULT '',
     transporte    REAL NOT NULL DEFAULT 0,
-    sede        TEXT NOT NULL DEFAULT 'Principal'
+    sede          TEXT NOT NULL DEFAULT 'Principal'
   );
   CREATE TABLE IF NOT EXISTS usuario_empleados (
     usuarioId  TEXT NOT NULL,
@@ -108,7 +102,7 @@ try { db.exec(`ALTER TABLE empleados  ADD COLUMN sede TEXT NOT NULL DEFAULT 'Pri
 try { db.exec(`ALTER TABLE usuarios   ADD COLUMN sede TEXT NOT NULL DEFAULT 'Principal'`); } catch {}
 try { db.exec(`ALTER TABLE usuarios   ADD COLUMN cambio_password INTEGER NOT NULL DEFAULT 0`); } catch {}
 
-// Configuración SMTP por defecto
+// SMTP defaults
 const smtpDefaults = {
   smtp_host:      '',
   smtp_puerto:    '587',
@@ -130,34 +124,27 @@ for (const [clave, valor] of Object.entries(smtpDefaults)) {
 function uid() {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
 }
-// Hash de contraseñas con bcrypt
 async function hashPassword(p) {
   return bcrypt.hash(p, BCRYPT_ROUNDS);
 }
 async function verificarPassword(plain, hash) {
-  // Soporte para hashes SHA-256 legacy durante migración
   if (hash.length === 64 && !hash.startsWith('$2')) {
     const legacyHash = crypto.createHash('sha256').update(plain + 'horasextra_salt_2025').digest('hex');
-    if (legacyHash === hash) {
-      // Migrar a bcrypt automáticamente en el login
-      return { ok: true, migrar: true };
-    }
+    if (legacyHash === hash) return { ok: true, migrar: true };
     return { ok: false };
   }
   return { ok: await bcrypt.compare(plain, hash), migrar: false };
 }
-
-// Cifrado AES-256-GCM para smtp_password
 function encryptSmtp(text) {
   if (!text) return '';
-  const iv         = crypto.randomBytes(16);
-  const cipher     = crypto.createCipheriv('aes-256-gcm', AES_KEY, iv);
-  const encrypted  = Buffer.concat([cipher.update(text, 'utf8'), cipher.final()]);
-  const authTag    = cipher.getAuthTag();
+  const iv        = crypto.randomBytes(16);
+  const cipher    = crypto.createCipheriv('aes-256-gcm', AES_KEY, iv);
+  const encrypted = Buffer.concat([cipher.update(text, 'utf8'), cipher.final()]);
+  const authTag   = cipher.getAuthTag();
   return 'aes:' + iv.toString('hex') + ':' + authTag.toString('hex') + ':' + encrypted.toString('hex');
 }
 function decryptSmtp(stored) {
-  if (!stored || !stored.startsWith('aes:')) return stored; // legacy sin cifrar
+  if (!stored || !stored.startsWith('aes:')) return stored;
   try {
     const [, ivHex, tagHex, encHex] = stored.split(':');
     const decipher = crypto.createDecipheriv('aes-256-gcm', AES_KEY, Buffer.from(ivHex, 'hex'));
@@ -185,6 +172,10 @@ function getConfig() {
 function getBaseUrl(req) {
   return `${req.protocol}://${req.get('host')}`;
 }
+function getAdminEmail() {
+  const admin = db.prepare("SELECT email FROM usuarios WHERE rol='admin' AND activo=1 ORDER BY creado ASC LIMIT 1").get();
+  return admin ? admin.email : null;
+}
 async function enviarCorreo(para, asunto, cuerpo) {
   const cfg = getConfig();
   const transporter = nodemailer.createTransport({
@@ -198,7 +189,7 @@ async function enviarCorreo(para, asunto, cuerpo) {
   await transporter.sendMail({ from: cfg.smtp_remitente, to: para, subject: asunto, text: cuerpo });
 }
 
-// Migrar smtp_password a AES si aún está en texto plano
+// Migrar smtp_password a AES si está en texto plano
 {
   const row = db.prepare("SELECT valor FROM configuracion WHERE clave='smtp_password'").get();
   if (row && row.valor && !row.valor.startsWith('aes:')) {
@@ -210,13 +201,11 @@ async function enviarCorreo(para, asunto, cuerpo) {
 
 // Centros y admin por defecto
 (async () => {
-  // Seed centros
   const totalCentros = db.prepare('SELECT COUNT(*) as n FROM centros').get().n;
   if (totalCentros === 0) {
     db.prepare('INSERT INTO centros (id,nombre,activo,creado) VALUES (?,?,1,?)').run(uid(), 'Principal', new Date().toISOString());
     console.log('🏢 Centro de operación inicial creado: Principal');
   }
-  // Seed admin
   const totalUsuarios = db.prepare('SELECT COUNT(*) as c FROM usuarios').get();
   if (totalUsuarios.c === 0) {
     const primerCentro = db.prepare('SELECT nombre FROM centros LIMIT 1').get()?.nombre || 'Principal';
@@ -227,6 +216,57 @@ async function enviarCorreo(para, asunto, cuerpo) {
     console.log('👤 Usuario admin creado: admin@empresa.com / Admin2025!');
   }
 })();
+
+// ─────────────────────────────────────────────
+// RATE LIMITING — protección fuerza bruta login
+// ─────────────────────────────────────────────
+const loginAttempts = new Map();
+const LOGIN_MAX_ATTEMPTS = 10;
+const LOGIN_WINDOW_MS    = 5 * 60 * 1000;
+const LOGIN_BLOCK_MS     = 30 * 60 * 1000;
+
+setInterval(() => {
+  const now = Date.now();
+  for (const [ip, data] of loginAttempts.entries()) {
+    if (data.blockedUntil && now > data.blockedUntil) loginAttempts.delete(ip);
+    else if (now - data.firstAttempt > LOGIN_WINDOW_MS) loginAttempts.delete(ip);
+  }
+}, 10 * 60 * 1000);
+
+function getRealIp(req) {
+  return (req.headers['x-forwarded-for'] || '').split(',')[0].trim()
+      || req.headers['x-real-ip']
+      || req.socket.remoteAddress
+      || 'unknown';
+}
+function loginRateLimit(req, res, next) {
+  const ip  = getRealIp(req);
+  const now = Date.now();
+  let data  = loginAttempts.get(ip) || { count: 0, firstAttempt: now, blockedUntil: null };
+  if (data.blockedUntil && now < data.blockedUntil) {
+    const mins = Math.ceil((data.blockedUntil - now) / 60000);
+    return res.status(429).json({ error: `Demasiados intentos fallidos. Intenta de nuevo en ${mins} minuto${mins !== 1 ? 's' : ''}.` });
+  }
+  if (now - data.firstAttempt > LOGIN_WINDOW_MS) {
+    data = { count: 0, firstAttempt: now, blockedUntil: null };
+  }
+  loginAttempts.set(ip, data);
+  req._loginIp = ip;
+  next();
+}
+function loginRegisterFail(ip) {
+  const now  = Date.now();
+  const data = loginAttempts.get(ip) || { count: 0, firstAttempt: now, blockedUntil: null };
+  data.count++;
+  if (data.count >= LOGIN_MAX_ATTEMPTS) {
+    data.blockedUntil = now + LOGIN_BLOCK_MS;
+    console.warn(`🔒 IP bloqueada por fuerza bruta: ${ip} (${data.count} intentos)`);
+  }
+  loginAttempts.set(ip, data);
+}
+function loginRegisterSuccess(ip) {
+  loginAttempts.delete(ip);
+}
 
 // ─────────────────────────────────────────────
 // MIDDLEWARE AUTH
@@ -256,14 +296,13 @@ const todosRoles     = autenticar(['admin', 'rrhh', 'consulta', 'operador']);
 // ─────────────────────────────────────────────
 // AUTH
 // ─────────────────────────────────────────────
-app.post('/api/auth/login', async (req, res) => {
+app.post('/api/auth/login', loginRateLimit, async (req, res) => {
   const { email, password } = req.body;
   if (!email || !password) return res.status(400).json({ error: 'Campos requeridos' });
   const usuario = db.prepare('SELECT * FROM usuarios WHERE email = ? AND activo = 1').get(email.toLowerCase().trim());
-  if (!usuario) return res.status(401).json({ error: 'Correo o contraseña incorrectos' });
+  if (!usuario) { loginRegisterFail(req._loginIp); return res.status(401).json({ error: 'Correo o contraseña incorrectos' }); }
   const check = await verificarPassword(password, usuario.password);
-  if (!check.ok) return res.status(401).json({ error: 'Correo o contraseña incorrectos' });
-  // Migrar hash SHA-256 legacy a bcrypt automáticamente
+  if (!check.ok) { loginRegisterFail(req._loginIp); return res.status(401).json({ error: 'Correo o contraseña incorrectos' }); }
   if (check.migrar) {
     const newHash = await hashPassword(password);
     db.prepare('UPDATE usuarios SET password = ? WHERE id = ?').run(newHash, usuario.id);
@@ -273,14 +312,13 @@ app.post('/api/auth/login', async (req, res) => {
   const token  = generateToken();
   const expira = new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString();
   db.prepare('INSERT INTO sesiones VALUES (?,?,?)').run(token, usuario.id, expira);
+  loginRegisterSuccess(req._loginIp);
   res.json({ token, usuario: { id: usuario.id, nombre: usuario.nombre, email: usuario.email, rol: usuario.rol, sede: usuario.sede, cambio_password: usuario.cambio_password||0 } });
 });
-
 app.post('/api/auth/logout', todosRoles, (req, res) => {
   db.prepare('DELETE FROM sesiones WHERE token = ?').run(req.headers['authorization']?.replace('Bearer ', ''));
   res.json({ ok: true });
 });
-
 app.get('/api/auth/me', todosRoles, (req, res) => {
   const u = req.usuario;
   res.json({ id: u.id, nombre: u.nombre, email: u.email, rol: u.rol, sede: u.sede, cambio_password: u.cambio_password||0 });
@@ -309,20 +347,16 @@ app.post('/api/auth/forgot-password', async (req, res) => {
     res.status(500).json({ error: 'No se pudo enviar el correo. Verifica la configuración SMTP.' });
   }
 });
-
-// Cambio forzado — usuario autenticado con flag cambio_password=1
 app.post('/api/auth/cambio-forzado', todosRoles, async (req, res) => {
   const { password } = req.body;
   const errores = validarPassword(password);
   if (errores.length) return res.status(400).json({ error: errores.join(', ') });
   const pwHashF = await hashPassword(password);
-  db.prepare('UPDATE usuarios SET password = ?, cambio_password = 0 WHERE id = ?')
-    .run(pwHashF, req.usuario.id);
+  db.prepare('UPDATE usuarios SET password = ?, cambio_password = 0 WHERE id = ?').run(pwHashF, req.usuario.id);
   db.prepare('DELETE FROM sesiones WHERE usuarioId = ? AND token != ?')
     .run(req.usuario.id, req.headers['authorization']?.replace('Bearer ', ''));
   res.json({ ok: true });
 });
-
 app.post('/api/auth/reset-password', async (req, res) => {
   const { token, password } = req.body;
   if (!token || !password) return res.status(400).json({ error: 'Datos incompletos' });
@@ -341,10 +375,10 @@ app.post('/api/auth/reset-password', async (req, res) => {
 });
 
 // ─────────────────────────────────────────────
-// CONFIGURACIÓN SMTP (solo admin)
+// CONFIGURACIÓN SMTP
 // ─────────────────────────────────────────────
 app.get('/api/configuracion', soloAdmin, (req, res) => {
-  const cfg  = getConfig();
+  const cfg = getConfig();
   res.json({ ...cfg, smtp_password: cfg.smtp_password ? '••••••••' : '' });
 });
 app.put('/api/configuracion', soloAdmin, (req, res) => {
@@ -360,8 +394,8 @@ app.put('/api/configuracion', soloAdmin, (req, res) => {
 });
 app.post('/api/configuracion/test', soloAdmin, async (req, res) => {
   try {
-    await enviarCorreo(req.usuario.email, 'Prueba SMTP — HorasExtra',
-      `Hola ${req.usuario.nombre},\n\nEsta es una prueba de conexión SMTP desde HorasExtra.\n\nSi recibes este mensaje, la configuración es correcta ✓\n\nSaludos,\nEquipo RRHH`);
+    await enviarCorreo(req.usuario.email, 'Prueba SMTP — Horix',
+      `Hola ${req.usuario.nombre},\n\nEsta es una prueba de conexión SMTP desde Horix.\n\nSi recibes este mensaje, la configuración es correcta ✓\n\nSaludos,\nEquipo RRHH`);
     res.json({ ok: true });
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -374,7 +408,6 @@ app.post('/api/configuracion/test', soloAdmin, async (req, res) => {
 app.get('/api/centros', todosRoles, (req, res) => {
   res.json(db.prepare('SELECT * FROM centros ORDER BY nombre ASC').all());
 });
-
 app.post('/api/centros', adminRrhh, (req, res) => {
   const { nombre } = req.body;
   if (!nombre?.trim()) return res.status(400).json({ error: 'El nombre es requerido' });
@@ -384,7 +417,6 @@ app.post('/api/centros', adminRrhh, (req, res) => {
   db.prepare('INSERT INTO centros (id,nombre,activo,creado) VALUES (?,?,1,?)').run(id, nombre.trim(), new Date().toISOString());
   res.json(db.prepare('SELECT * FROM centros WHERE id=?').get(id));
 });
-
 app.put('/api/centros/:id', adminRrhh, (req, res) => {
   const { nombre, activo } = req.body;
   if (!nombre?.trim()) return res.status(400).json({ error: 'El nombre es requerido' });
@@ -393,15 +425,12 @@ app.put('/api/centros/:id', adminRrhh, (req, res) => {
   db.prepare('UPDATE centros SET nombre=?, activo=? WHERE id=?').run(nombre.trim(), activo?1:0, req.params.id);
   res.json(db.prepare('SELECT * FROM centros WHERE id=?').get(req.params.id));
 });
-
 app.delete('/api/centros/:id', soloAdmin, (req, res) => {
-  const enUso = db.prepare("SELECT COUNT(*) as n FROM empleados WHERE sede=( SELECT nombre FROM centros WHERE id=?)").get(req.params.id);
+  const enUso = db.prepare("SELECT COUNT(*) as n FROM empleados WHERE sede=(SELECT nombre FROM centros WHERE id=?)").get(req.params.id);
   if (enUso?.n > 0) return res.status(400).json({ error: 'No se puede eliminar: hay empleados asignados a este centro' });
   db.prepare('DELETE FROM centros WHERE id=?').run(req.params.id);
   res.json({ ok: true });
 });
-
-// Mantener /api/sedes como alias para compatibilidad
 app.get('/api/sedes', todosRoles, (req, res) => {
   res.json(db.prepare("SELECT nombre FROM centros WHERE activo=1 ORDER BY nombre ASC").all().map(c => c.nombre));
 });
@@ -411,7 +440,6 @@ app.get('/api/sedes', todosRoles, (req, res) => {
 // ─────────────────────────────────────────────
 app.get('/api/usuarios', soloAdmin, (req, res) =>
   res.json(db.prepare('SELECT id, nombre, email, rol, sede, activo, cambio_password, creado FROM usuarios ORDER BY creado DESC').all()));
-
 app.post('/api/usuarios', soloAdmin, async (req, res) => {
   const { nombre, email, password, rol, sede } = req.body;
   if (!nombre || !email || !password || !rol || !sede) return res.status(400).json({ error: 'Todos los campos son requeridos' });
@@ -429,16 +457,12 @@ app.post('/api/usuarios', soloAdmin, async (req, res) => {
   );
   res.json({ id });
 });
-
-// GET asignaciones de un usuario
 app.get('/api/usuario_empleados/:id', soloAdmin, (req, res) => {
   const rows = db.prepare('SELECT empleadoId FROM usuario_empleados WHERE usuarioId = ?').all(req.params.id);
   res.json(rows.map(r => r.empleadoId));
 });
-
-// PUT asignaciones de un usuario (reemplaza todas)
 app.put('/api/usuario_empleados/:id', soloAdmin, (req, res) => {
-  const { empleados: lista } = req.body; // array de ids o [] para sin restricción
+  const { empleados: lista } = req.body;
   db.transaction(() => {
     db.prepare('DELETE FROM usuario_empleados WHERE usuarioId = ?').run(req.params.id);
     if (Array.isArray(lista)) {
@@ -448,7 +472,6 @@ app.put('/api/usuario_empleados/:id', soloAdmin, (req, res) => {
   })();
   res.json({ ok: true });
 });
-
 app.put('/api/usuarios/:id', soloAdmin, async (req, res) => {
   const { nombre, email, rol, sede, activo, password } = req.body;
   if (!['admin','rrhh','consulta','operador'].includes(rol)) return res.status(400).json({ error: 'Rol inválido' });
@@ -467,14 +490,12 @@ app.put('/api/usuarios/:id', soloAdmin, async (req, res) => {
   }
   res.json({ ok: true });
 });
-
 app.post('/api/usuarios/:id/forzar-cambio', soloAdmin, (req, res) => {
   if (req.params.id === req.usuario.id) return res.status(400).json({ error: 'No puedes forzar el cambio a tu propio usuario' });
   db.prepare('UPDATE usuarios SET cambio_password = 1 WHERE id = ?').run(req.params.id);
   db.prepare('DELETE FROM sesiones WHERE usuarioId = ?').run(req.params.id);
   res.json({ ok: true });
 });
-
 app.delete('/api/usuarios/:id', soloAdmin, (req, res) => {
   if (req.params.id === req.usuario.id) return res.status(400).json({ error: 'No puedes eliminarte a ti mismo' });
   db.prepare('DELETE FROM sesiones WHERE usuarioId = ?').run(req.params.id);
@@ -487,29 +508,20 @@ app.delete('/api/usuarios/:id', soloAdmin, (req, res) => {
 // ─────────────────────────────────────────────
 app.get('/api/empleados', todosRoles, (req, res) => {
   const u = req.usuario;
-
-  // Verificar si el usuario tiene empleados asignados explícitamente
   const asignados = db.prepare('SELECT empleadoId FROM usuario_empleados WHERE usuarioId = ?')
     .all(u.id).map(r => r.empleadoId);
-
-  // Si tiene asignación explícita → solo esos empleados (aplica a cualquier rol)
   if (asignados.length > 0) {
     const placeholders = asignados.map(() => '?').join(',');
     return res.json(db.prepare(`SELECT * FROM empleados WHERE id IN (${placeholders})`).all(...asignados));
   }
-
-  // Sin asignación explícita: aplicar reglas por rol
-  // Operador: solo empleados de su sede
   if (u.rol === 'operador') {
     return res.json(db.prepare('SELECT * FROM empleados WHERE sede = ?').all(u.sede));
   }
-  // RRHH: puede filtrar por sede con query param, si no trae todos
   if (u.rol === 'rrhh' && req.query.sede) {
     return res.json(db.prepare('SELECT * FROM empleados WHERE sede = ?').all(req.query.sede));
   }
   res.json(db.prepare('SELECT * FROM empleados').all());
 });
-
 app.post('/api/empleados', adminRrhh, (req, res) => {
   const { nombre, cedula, cargo, departamento, sede, email, telefono } = req.body;
   const centroValido = db.prepare('SELECT id FROM centros WHERE nombre=? AND activo=1').get(sede);
@@ -520,7 +532,6 @@ app.post('/api/empleados', adminRrhh, (req, res) => {
   );
   res.json({ id });
 });
-
 app.put('/api/empleados/:id', adminRrhh, (req, res) => {
   const { nombre, cedula, cargo, departamento, sede, email, telefono } = req.body;
   const centroValido = db.prepare('SELECT id FROM centros WHERE nombre=? AND activo=1').get(sede);
@@ -529,7 +540,6 @@ app.put('/api/empleados/:id', adminRrhh, (req, res) => {
     .run(nombre, cedula, cargo, departamento, sede, email||'', telefono||'', req.params.id);
   res.json({ ok: true });
 });
-
 app.delete('/api/empleados/:id', soloAdmin, (req, res) => {
   db.prepare('DELETE FROM registros WHERE empleadoId=?').run(req.params.id);
   db.prepare('DELETE FROM empleados WHERE id=?').run(req.params.id);
@@ -562,11 +572,9 @@ app.get('/api/registros', todosRoles, (req, res) => {
     FROM registros r
     LEFT JOIN usuarios u ON r.creadoPor = u.id
   `;
-  // Operador: solo registros que él mismo creó
   if (u.rol === 'operador') {
     return res.json(db.prepare(base + ' WHERE r.creadoPor = ? ORDER BY r.fecha DESC').all(u.id));
   }
-  // RRHH: puede filtrar por sede
   if (u.rol === 'rrhh' && req.query.sede) {
     return res.json(db.prepare(base + `
       JOIN empleados e ON r.empleadoId = e.id
@@ -575,26 +583,23 @@ app.get('/api/registros', todosRoles, (req, res) => {
   }
   res.json(db.prepare(base + ' ORDER BY r.fecha DESC').all());
 });
-
 app.post('/api/registros', adminRrhhOp, (req, res) => {
   const { empleadoId, nominaId, fecha, horas, tipo, concepto, aprobador, motivo, observaciones, transporte } = req.body;
   const u = req.usuario;
-  // Validar que el usuario tiene permiso sobre este empleado
   if (u.rol !== 'admin') {
     const asignados = db.prepare('SELECT empleadoId FROM usuario_empleados WHERE usuarioId = ?').all(u.id).map(r => r.empleadoId);
     if (asignados.length > 0 && !asignados.includes(empleadoId)) {
       return res.status(403).json({ error: 'No tienes permiso para registrar horas a este empleado.' });
     }
   }
-  const emp = db.prepare('SELECT sede FROM empleados WHERE id = ?').get(empleadoId);
+  const emp  = db.prepare('SELECT sede FROM empleados WHERE id = ?').get(empleadoId);
   const sede = emp ? emp.sede : 'Principal';
-  const id = uid();
+  const id   = uid();
   db.prepare('INSERT INTO registros (id,empleadoId,nominaId,fecha,horas,tipo,aprobador,motivo,creado,concepto,sede,creadoPor,observaciones,transporte) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)')
     .run(id, empleadoId, nominaId, fecha, horas, tipo, aprobador, motivo, new Date().toISOString(), concepto||'', sede, req.usuario.id, observaciones||'', parseFloat(transporte||0));
   res.json({ id });
 });
-
-app.delete('/api/registros/:id', adminRrhh, (req, res) => {
+app.delete('/api/registros/:id', soloAdmin, (req, res) => {
   db.prepare('DELETE FROM registros WHERE id=?').run(req.params.id);
   res.json({ ok: true });
 });
@@ -602,8 +607,6 @@ app.delete('/api/registros/:id', adminRrhh, (req, res) => {
 // ─────────────────────────────────────────────
 // BACKUP & RESTAURACIÓN
 // ─────────────────────────────────────────────
-
-// GET /api/backup — genera ZIP con JSON + CSVs
 app.get('/api/backup', soloAdmin, (req, res) => {
   try {
     const cfg = getConfig();
@@ -618,26 +621,21 @@ app.get('/api/backup', soloAdmin, (req, res) => {
       registros: db.prepare('SELECT * FROM registros').all(),
       usuario_empleados: db.prepare('SELECT * FROM usuario_empleados').all(),
     };
-
-    // Helper CSV
     function toCSV(rows) {
       if (!rows.length) return '';
       const cols = Object.keys(rows[0]);
       const esc  = v => `"${String(v??'').replace(/"/g,'""')}"`;
       return [cols.join(','), ...rows.map(r => cols.map(c => esc(r[c])).join(','))].join('\n');
     }
-
     const zip = new AdmZip();
     zip.addFile('backup.json', Buffer.from(JSON.stringify(data, null, 2), 'utf8'));
     zip.addFile('empleados.csv',  Buffer.from(toCSV(data.empleados),  'utf8'));
     zip.addFile('nominas.csv',    Buffer.from(toCSV(data.nominas),    'utf8'));
     zip.addFile('registros.csv',  Buffer.from(toCSV(data.registros),  'utf8'));
     zip.addFile('usuarios.csv',   Buffer.from(toCSV(data.usuarios),   'utf8'));
-
     const fecha    = new Date().toISOString().slice(0,10);
     const filename = `horasextra_backup_${fecha}.zip`;
     const buffer   = zip.toBuffer();
-
     res.setHeader('Content-Type', 'application/zip');
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
     res.setHeader('Content-Length', buffer.length);
@@ -648,68 +646,55 @@ app.get('/api/backup', soloAdmin, (req, res) => {
   }
 });
 
-// POST /api/restore — restaura desde JSON del ZIP
 app.post('/api/restore', soloAdmin, upload.single('backup'), (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No se recibió ningún archivo' });
   try {
     let data;
-
-    // Aceptar ZIP o JSON directamente
     if (req.file.originalname.endsWith('.zip')) {
-      const zip  = new AdmZip(req.file.buffer);
+      const zip   = new AdmZip(req.file.buffer);
       const entry = zip.getEntry('backup.json');
       if (!entry) return res.status(400).json({ error: 'El ZIP no contiene backup.json' });
       data = JSON.parse(entry.getData().toString('utf8'));
     } else {
       data = JSON.parse(req.file.buffer.toString('utf8'));
     }
-
     if (data.app !== 'HorasExtra') return res.status(400).json({ error: 'Archivo de backup inválido' });
-
-    // Restaurar en transacción
     db.transaction(() => {
-      // Configuración SMTP
       if (data.configuracion) {
         for (const [clave, valor] of Object.entries(data.configuracion)) {
           const stored = clave === 'smtp_password' ? encryptSmtp(valor) : valor;
           db.prepare('INSERT OR REPLACE INTO configuracion VALUES (?,?)').run(clave, stored);
         }
       }
-      // Empleados
       if (data.empleados?.length) {
         db.prepare('DELETE FROM empleados').run();
         const ins = db.prepare('INSERT OR REPLACE INTO empleados (id,nombre,cedula,cargo,departamento,sede,email,telefono) VALUES (?,?,?,?,?,?,?,?)');
         for (const e of data.empleados) ins.run(e.id,e.nombre,e.cedula,e.cargo,e.departamento,e.sede||'Principal',e.email||'',e.telefono||'');
       }
-      // Nóminas
       if (data.nominas?.length) {
         db.prepare('DELETE FROM nominas').run();
         const ins = db.prepare('INSERT OR REPLACE INTO nominas VALUES (?,?,?,?,?)');
         for (const n of data.nominas) ins.run(n.id,n.nombre,n.tipo,n.inicio,n.fin);
       }
-      // Registros
       if (data.registros?.length) {
         db.prepare('DELETE FROM registros').run();
         const ins = db.prepare('INSERT OR REPLACE INTO registros (id,empleadoId,nominaId,fecha,horas,tipo,aprobador,motivo,creado,concepto,sede,creadoPor,observaciones,transporte) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)');
         for (const r of data.registros) ins.run(r.id,r.empleadoId,r.nominaId,r.fecha,r.horas,r.tipo,r.aprobador,r.motivo,r.creado,r.concepto||'',r.sede||'Principal',r.creadoPor||'',r.observaciones||'',parseFloat(r.transporte||0));
       }
-      // Asignaciones usuario-empleados
       if (data.usuario_empleados?.length) {
         db.prepare('DELETE FROM usuario_empleados').run();
         const ins = db.prepare('INSERT OR IGNORE INTO usuario_empleados VALUES (?,?)');
         for (const r of data.usuario_empleados) ins.run(r.usuarioId, r.empleadoId);
       }
-      // Usuarios (no sobreescribir al admin actual)
       if (data.usuarios?.length) {
         const insUser = db.prepare('INSERT OR REPLACE INTO usuarios (id,nombre,email,password,rol,sede,activo,cambio_password,creado) VALUES (?,?,?,?,?,?,?,?,?)');
         for (const u of data.usuarios) {
-          if (u.id === req.usuario.id) continue; // proteger sesión actual
+          if (u.id === req.usuario.id) continue;
           if (!u.password) { console.warn('Restore: usuario sin password omitido:', u.email); continue; }
           insUser.run(u.id, u.nombre, u.email, u.password, u.rol, u.sede||'Principal', u.activo??1, u.cambio_password??0, u.creado);
         }
       }
     })();
-
     res.json({ ok: true, mensaje: 'Restauración completada correctamente' });
   } catch (e) {
     console.error('Error restauración:', e);
@@ -718,31 +703,18 @@ app.post('/api/restore', soloAdmin, upload.single('backup'), (req, res) => {
 });
 
 // ─────────────────────────────────────────────
-// ─────────────────────────────────────────────
-// ALERTA DE BACKUP — llamado por el script bash
+// ALERTA DE BACKUP
 // ─────────────────────────────────────────────
 app.post('/api/backup/alerta', soloAdmin, async (req, res) => {
   const { error, detalle } = req.body;
   const fecha = new Date().toLocaleString('es-CO', { timeZone: 'America/Bogota' });
   try {
+    const adminEmail = getAdminEmail();
+    if (!adminEmail) throw new Error('No hay admin activo para enviar la alerta');
     await enviarCorreo(
       adminEmail,
-      `⚠ Error en Backup Automático — HorasExtra ${fecha}`,
-      `Hola,
-
-El backup automático programado de HorasExtra falló el ${fecha}.
-
-Error:
-${error || 'Error desconocido'}
-
-Detalle:
-${detalle || 'Sin detalle adicional'}
-
-Por favor revisa el log en el servidor:
-  cat /var/log/backup_horasextra.log
-
-Saludos,
-Sistema Horix`
+      `⚠ Error en Backup Automático — Horix ${fecha}`,
+      `Hola,\n\nEl backup automático de Horix falló el ${fecha}.\n\nError:\n${error || 'Error desconocido'}\n\nDetalle:\n${detalle || 'Sin detalle adicional'}\n\nRevisa el log:\n  cat /var/log/backup_horix.log\n\nSaludos,\nSistema Horix`
     );
     res.json({ ok: true });
   } catch(e) {
@@ -750,12 +722,9 @@ Sistema Horix`
   }
 });
 
-
 // ─────────────────────────────────────────────
 // BACKUPS AUTOMÁTICOS — lista y descarga
 // ─────────────────────────────────────────────
-
-// Obtiene el directorio de backups locales desde last_backup.json
 function getBackupDir() {
   const candidatos = ['last_backup.json', '.ultimo_backup.json'].map(f => path.join(__dirname, f));
   for (const infoFile of candidatos) {
@@ -763,18 +732,14 @@ function getBackupDir() {
       if (!fs.existsSync(infoFile)) continue;
       const info = JSON.parse(fs.readFileSync(infoFile, 'utf8'));
       if (info.archivo) {
-        // Buscar el archivo en rutas conocidas
         const posibleDir = path.join(require('os').homedir(), 'backups', 'horix');
         if (fs.existsSync(posibleDir)) return posibleDir;
       }
     } catch {}
   }
-  // Fallback: buscar directorio de backups en HOME
   const fallback = path.join(require('os').homedir(), 'backups', 'horix');
   return fs.existsSync(fallback) ? fallback : null;
 }
-
-// GET /api/backup/lista — lista los backups automáticos disponibles
 app.get('/api/backup/lista', soloAdmin, (req, res) => {
   const dir = getBackupDir();
   if (!dir || !fs.existsSync(dir)) return res.json([]);
@@ -784,24 +749,17 @@ app.get('/api/backup/lista', soloAdmin, (req, res) => {
       .map(f => {
         const fullPath = path.join(dir, f);
         const stat = fs.statSync(fullPath);
-        return {
-          nombre:  f,
-          tamaño:  stat.size,
-          fecha:   stat.mtime.toISOString(),
-        };
+        return { nombre: f, tamaño: stat.size, fecha: stat.mtime.toISOString() };
       })
-      .sort((a, b) => new Date(b.fecha) - new Date(a.fecha)) // más reciente primero
+      .sort((a, b) => new Date(b.fecha) - new Date(a.fecha))
       .slice(0, 7);
     res.json(archivos);
   } catch (e) {
     res.status(500).json({ error: 'Error listando backups: ' + e.message });
   }
 });
-
-// GET /api/backup/descargar/:filename — descarga un backup automático específico
 app.get('/api/backup/descargar/:filename', soloAdmin, (req, res) => {
   const { filename } = req.params;
-  // Validar nombre — solo horix_backup_*.zip
   if (!/^horix_backup_[\w\-]+\.zip$/.test(filename)) {
     return res.status(400).json({ error: 'Nombre de archivo inválido' });
   }
@@ -811,8 +769,6 @@ app.get('/api/backup/descargar/:filename', soloAdmin, (req, res) => {
   if (!fs.existsSync(fullPath)) return res.status(404).json({ error: 'Archivo no encontrado' });
   res.download(fullPath, filename);
 });
-
-// POST /api/restore/local/:filename — restaura un backup automático sin subir archivo
 app.post('/api/restore/local/:filename', soloAdmin, (req, res) => {
   const { filename } = req.params;
   if (!/^horix_backup_[\w\-]+\.zip$/.test(filename)) {
@@ -822,13 +778,11 @@ app.post('/api/restore/local/:filename', soloAdmin, (req, res) => {
   if (!dir) return res.status(404).json({ error: 'Directorio de backups no encontrado' });
   const fullPath = path.join(dir, filename);
   if (!fs.existsSync(fullPath)) return res.status(404).json({ error: 'Archivo no encontrado' });
-
   try {
     const zip   = new AdmZip(fullPath);
     const entry = zip.getEntry('backup.json');
     if (!entry) return res.status(400).json({ error: 'El ZIP no contiene backup.json' });
     const data = JSON.parse(entry.getData().toString('utf8'));
-
     db.transaction(() => {
       if (data.configuracion) {
         for (const [clave, valor] of Object.entries(data.configuracion)) {
@@ -865,19 +819,15 @@ app.post('/api/restore/local/:filename', soloAdmin, (req, res) => {
         }
       }
     })();
-
     res.json({ ok: true, mensaje: 'Restauración completada correctamente' });
   } catch (e) {
     console.error('Error restauración local:', e);
     res.status(500).json({ error: 'Error restaurando: ' + e.message });
   }
 });
-
-// GET /api/backup/ultimo — info del último backup automático
 app.get('/api/backup/ultimo', soloAdmin, (req, res) => {
   res.set('Cache-Control', 'no-store, no-cache, must-revalidate');
   res.set('Pragma', 'no-cache');
-  // Buscar en ambos nombres por compatibilidad
   const candidatos = ['last_backup.json', '.ultimo_backup.json'].map(f => path.join(__dirname, f));
   for (const infoFile of candidatos) {
     try {
@@ -893,8 +843,6 @@ app.get('/api/backup/ultimo', soloAdmin, (req, res) => {
 // LOGO PERSONALIZADO
 // ─────────────────────────────────────────────
 const LOGO_PATH = path.join(__dirname, 'public', 'logo_empresa');
-
-// GET /logo — sirve el logo si existe
 app.get('/logo', (req, res) => {
   const exts = ['.png', '.jpg', '.jpeg', '.svg', '.webp'];
   for (const ext of exts) {
@@ -909,8 +857,6 @@ app.get('/logo', (req, res) => {
   }
   res.status(404).json({ error: 'Sin logo' });
 });
-
-// POST /api/logo — sube el logo (solo admin)
 app.post('/api/logo', soloAdmin, upload.single('logo'), (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No se recibió archivo' });
   const mime = req.file.mimetype;
@@ -918,17 +864,13 @@ app.post('/api/logo', soloAdmin, upload.single('logo'), (req, res) => {
              : mime === 'image/webp'    ? '.webp'
              : mime === 'image/jpeg'    ? '.jpg'
              : '.png';
-  // Borrar logos anteriores
   ['.png','.jpg','.jpeg','.svg','.webp'].forEach(e => {
     const p = LOGO_PATH + e;
     if (fs.existsSync(p)) fs.unlinkSync(p);
   });
-  const dest = LOGO_PATH + ext;
-  fs.writeFileSync(dest, req.file.buffer);
+  fs.writeFileSync(LOGO_PATH + ext, req.file.buffer);
   res.json({ ok: true });
 });
-
-// DELETE /api/logo — elimina el logo (solo admin)
 app.delete('/api/logo', soloAdmin, (req, res) => {
   ['.png','.jpg','.jpeg','.svg','.webp'].forEach(e => {
     const p = LOGO_PATH + e;
@@ -937,6 +879,7 @@ app.delete('/api/logo', soloAdmin, (req, res) => {
   res.json({ ok: true });
 });
 
+// ─────────────────────────────────────────────
 // INICIAR
 // ─────────────────────────────────────────────
 app.listen(3000, '0.0.0.0', () => {
