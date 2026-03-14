@@ -82,6 +82,8 @@ pm2 restart horix       # Reiniciar servidor
 pm2 stop horix          # Detener servidor
 ./backup_horasextra.sh  # Ejecutar backup manual
 sudo crontab -l         # Ver tareas programadas
+sudo fail2ban-client status horix-login   # Ver IPs bloqueadas
+sudo fail2ban-client set horix-login unbanip <IP>  # Desbloquear IP
 ```
 
 ## Estructura del proyecto
