@@ -1970,14 +1970,14 @@ function renderHistorial() {
   if(sedeF)  data=data.filter(r=>(r.sede||empleados.find(e=>e.id===r.empleadoId)?.sede||'')=== sedeF);
 
   // Ocultar columna acciones para consulta
-  document.getElementById('hist-th-acciones').style.display = puedoEditar() ? '' : 'none';
+  document.getElementById('hist-th-acciones').style.display = soyAdmin() ? '' : 'none';
 
   const tbody=document.getElementById('hist-body');
   if (!data.length) { tbody.innerHTML=`<tr><td colspan="10"><div class="empty"><div class="empty-icon">🔍</div><div class="empty-text">No se encontraron registros</div></div></td></tr>`; return; }
   tbody.innerHTML=data.map(r=>{
     const emp=empleados.find(e=>e.id===r.empleadoId);
     const nom=nominas.find(n=>n.id===r.nominaId);
-    const acciones = puedoEditar() ? `<td><div class="actions-cell"><button class="btn btn-danger btn-sm" onclick="eliminarRegistro('${r.id}')">🗑</button></div></td>` : '<td style="display:none"></td>';
+    const acciones = soyAdmin() ? `<td><div class="actions-cell"><button class="btn btn-danger btn-sm" onclick="eliminarRegistro('${r.id}')">🗑</button></div></td>` : '<td style="display:none"></td>';
     const sedeBadge=r.sede||emp?.sede||'—';
     return `<tr>
       <td><strong>${emp?emp.nombre:'—'}</strong></td><td>${emp?emp.cargo:'—'}</td>
