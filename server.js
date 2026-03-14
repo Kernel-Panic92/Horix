@@ -790,7 +790,8 @@ app.get('/api/backup/lista', soloAdmin, (req, res) => {
           fecha:   stat.mtime.toISOString(),
         };
       })
-      .sort((a, b) => new Date(b.fecha) - new Date(a.fecha)); // más reciente primero
+      .sort((a, b) => new Date(b.fecha) - new Date(a.fecha)) // más reciente primero
+      .slice(0, 7);
     res.json(archivos);
   } catch (e) {
     res.status(500).json({ error: 'Error listando backups: ' + e.message });
