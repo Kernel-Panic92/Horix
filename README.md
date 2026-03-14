@@ -8,6 +8,7 @@ Sistema web para la gestión y control de horas extra del personal, desarrollado
 |-----------|---------------|-------|
 | Node.js   | 18.0.0        | Instalado automáticamente por el instalador |
 | PM2       | cualquiera    | Instalado automáticamente por el instalador |
+| Fail2Ban  | cualquiera    | Instalado automáticamente por el instalador |
 | Nginx     | cualquiera    | Solo si se configura HTTPS. `sudo apt install nginx -y` |
 | Linux     | Ubuntu 20.04+ / Debian 11+ | |
 
