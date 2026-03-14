@@ -750,6 +750,128 @@ Sistema Horix`
   }
 });
 
+
+// ─────────────────────────────────────────────
+// BACKUPS AUTOMÁTICOS — lista y descarga
+// ─────────────────────────────────────────────
+
+// Obtiene el directorio de backups locales desde last_backup.json
+function getBackupDir() {
+  const candidatos = ['last_backup.json', '.ultimo_backup.json'].map(f => path.join(__dirname, f));
+  for (const infoFile of candidatos) {
+    try {
+      if (!fs.existsSync(infoFile)) continue;
+      const info = JSON.parse(fs.readFileSync(infoFile, 'utf8'));
+      if (info.archivo) {
+        // Buscar el archivo en rutas conocidas
+        const posibleDir = path.join(require('os').homedir(), 'backups', 'horix');
+        if (fs.existsSync(posibleDir)) return posibleDir;
+      }
+    } catch {}
+  }
+  // Fallback: buscar directorio de backups en HOME
+  const fallback = path.join(require('os').homedir(), 'backups', 'horix');
+  return fs.existsSync(fallback) ? fallback : null;
+}
+
+// GET /api/backup/lista — lista los backups automáticos disponibles
+app.get('/api/backup/lista', soloAdmin, (req, res) => {
+  const dir = getBackupDir();
+  if (!dir || !fs.existsSync(dir)) return res.json([]);
+  try {
+    const archivos = fs.readdirSync(dir)
+      .filter(f => f.startsWith('horix_backup_') && f.endsWith('.zip'))
+      .map(f => {
+        const fullPath = path.join(dir, f);
+        const stat = fs.statSync(fullPath);
+        return {
+          nombre:  f,
+          tamaño:  stat.size,
+          fecha:   stat.mtime.toISOString(),
+        };
+      })
+      .sort((a, b) => new Date(b.fecha) - new Date(a.fecha)); // más reciente primero
+    res.json(archivos);
+  } catch (e) {
+    res.status(500).json({ error: 'Error listando backups: ' + e.message });
+  }
+});
+
+// GET /api/backup/descargar/:filename — descarga un backup automático específico
+app.get('/api/backup/descargar/:filename', soloAdmin, (req, res) => {
+  const { filename } = req.params;
+  // Validar nombre — solo horix_backup_*.zip
+  if (!/^horix_backup_[\w\-]+\.zip$/.test(filename)) {
+    return res.status(400).json({ error: 'Nombre de archivo inválido' });
+  }
+  const dir = getBackupDir();
+  if (!dir) return res.status(404).json({ error: 'Directorio de backups no encontrado' });
+  const fullPath = path.join(dir, filename);
+  if (!fs.existsSync(fullPath)) return res.status(404).json({ error: 'Archivo no encontrado' });
+  res.download(fullPath, filename);
+});
+
+// POST /api/restore/local/:filename — restaura un backup automático sin subir archivo
+app.post('/api/restore/local/:filename', soloAdmin, (req, res) => {
+  const { filename } = req.params;
+  if (!/^horix_backup_[\w\-]+\.zip$/.test(filename)) {
+    return res.status(400).json({ error: 'Nombre de archivo inválido' });
+  }
+  const dir = getBackupDir();
+  if (!dir) return res.status(404).json({ error: 'Directorio de backups no encontrado' });
+  const fullPath = path.join(dir, filename);
+  if (!fs.existsSync(fullPath)) return res.status(404).json({ error: 'Archivo no encontrado' });
+
+  try {
+    const zip   = new AdmZip(fullPath);
+    const entry = zip.getEntry('backup.json');
+    if (!entry) return res.status(400).json({ error: 'El ZIP no contiene backup.json' });
+    const data = JSON.parse(entry.getData().toString('utf8'));
+
+    db.transaction(() => {
+      if (data.configuracion) {
+        for (const [clave, valor] of Object.entries(data.configuracion)) {
+          const stored = clave === 'smtp_password' ? encryptSmtp(valor) : valor;
+          db.prepare('INSERT OR REPLACE INTO configuracion VALUES (?,?)').run(clave, stored);
+        }
+      }
+      if (data.empleados?.length) {
+        db.prepare('DELETE FROM empleados').run();
+        const ins = db.prepare('INSERT OR REPLACE INTO empleados (id,nombre,cedula,cargo,departamento,sede,email,telefono) VALUES (?,?,?,?,?,?,?,?)');
+        for (const e of data.empleados) ins.run(e.id,e.nombre,e.cedula,e.cargo,e.departamento,e.sede||'Principal',e.email||'',e.telefono||'');
+      }
+      if (data.nominas?.length) {
+        db.prepare('DELETE FROM nominas').run();
+        const ins = db.prepare('INSERT OR REPLACE INTO nominas VALUES (?,?,?,?,?)');
+        for (const n of data.nominas) ins.run(n.id,n.nombre,n.tipo,n.inicio,n.fin);
+      }
+      if (data.registros?.length) {
+        db.prepare('DELETE FROM registros').run();
+        const ins = db.prepare('INSERT OR REPLACE INTO registros (id,empleadoId,nominaId,fecha,horas,tipo,aprobador,motivo,creado,concepto,sede,creadoPor,observaciones,transporte) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)');
+        for (const r of data.registros) ins.run(r.id,r.empleadoId,r.nominaId,r.fecha,r.horas,r.tipo,r.aprobador,r.motivo,r.creado,r.concepto||'',r.sede||'Principal',r.creadoPor||'',r.observaciones||'',parseFloat(r.transporte||0));
+      }
+      if (data.usuario_empleados?.length) {
+        db.prepare('DELETE FROM usuario_empleados').run();
+        const ins = db.prepare('INSERT OR IGNORE INTO usuario_empleados VALUES (?,?)');
+        for (const r of data.usuario_empleados) ins.run(r.usuarioId, r.empleadoId);
+      }
+      if (data.usuarios?.length) {
+        const insUser = db.prepare('INSERT OR REPLACE INTO usuarios (id,nombre,email,password,rol,sede,activo,cambio_password,creado) VALUES (?,?,?,?,?,?,?,?,?)');
+        for (const u of data.usuarios) {
+          if (u.id === req.usuario.id) continue;
+          if (!u.password) continue;
+          insUser.run(u.id,u.nombre,u.email,u.password,u.rol,u.sede||'Principal',u.activo??1,u.cambio_password??0,u.creado);
+        }
+      }
+    })();
+
+    res.json({ ok: true, mensaje: 'Restauración completada correctamente' });
+  } catch (e) {
+    console.error('Error restauración local:', e);
+    res.status(500).json({ error: 'Error restaurando: ' + e.message });
+  }
+});
+
 // GET /api/backup/ultimo — info del último backup automático
 app.get('/api/backup/ultimo', soloAdmin, (req, res) => {
   res.set('Cache-Control', 'no-store, no-cache, must-revalidate');

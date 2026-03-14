@@ -1058,29 +1058,46 @@
         <!-- RESTAURAR -->
         <div class="table-wrap" style="padding:28px 32px;">
           <div style="font-family:var(--font-head);font-weight:700;font-size:16px;margin-bottom:6px;">♻️ Restaurar Backup</div>
-          <p style="color:var(--muted);font-size:13px;margin-bottom:24px;line-height:1.6;">
-            Sube un archivo <strong style="color:var(--text)">.zip</strong> o <strong style="color:var(--text)">.json</strong>
-            generado previamente por esta app para restaurar los datos.
-            <strong style="color:var(--danger)">Esta acción reemplaza los datos actuales.</strong>
-          </p>
           <div style="background:rgba(231,76,60,0.06);border:1px solid rgba(231,76,60,0.2);border-radius:10px;padding:14px 16px;margin-bottom:20px;font-size:12px;color:var(--danger);">
             ⚠ Los datos actuales de empleados, registros y nóminas serán reemplazados por los del backup.
             Tu usuario administrador actual no será afectado.
           </div>
-          <div id="restore-drop" onclick="document.getElementById('restore-file').click()"
-            style="border:2px dashed var(--border);border-radius:12px;padding:32px;text-align:center;cursor:pointer;margin-bottom:16px;transition:border-color 0.2s;"
-            onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'"
-            ondragover="event.preventDefault();this.style.borderColor='var(--accent)'"
-            ondragleave="this.style.borderColor='var(--border)'"
-            ondrop="handleRestoreDrop(event)">
-            <div style="font-size:32px;margin-bottom:8px;">📂</div>
-            <div style="font-size:14px;color:var(--muted);">Haz clic o arrastra tu archivo <strong style="color:var(--text)">.zip</strong> o <strong style="color:var(--text)">.json</strong> aquí</div>
-            <div id="restore-filename" style="margin-top:8px;font-size:12px;color:var(--accent);display:none;"></div>
+
+          <!-- Backups automáticos del servidor -->
+          <div style="margin-bottom:24px;">
+            <div style="font-size:13px;font-weight:600;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;">
+              <span>🤖 Backups Automáticos en el Servidor</span>
+              <button class="btn btn-secondary btn-sm" onclick="cargarListaBackups()">🔄 Actualizar</button>
+            </div>
+            <div id="lista-backups-loading" style="text-align:center;padding:16px;color:var(--muted);font-size:13px;">Cargando...</div>
+            <div id="lista-backups-none" style="display:none;text-align:center;padding:16px;color:var(--muted);font-size:12px;background:var(--surface2);border-radius:9px;">
+              🕐 No hay backups automáticos disponibles en el servidor
+            </div>
+            <div id="lista-backups-body" style="display:none;display:flex;flex-direction:column;gap:8px;max-height:280px;overflow-y:auto;"></div>
           </div>
-          <input type="file" id="restore-file" accept=".zip,.json" style="display:none"/>
-          <button class="btn btn-danger" id="btn-restaurar" onclick="restaurarBackup()" disabled style="width:100%;justify-content:center;padding:13px;opacity:0.5;">
-            ♻️ Restaurar Datos
-          </button>
+
+          <!-- Restaurar desde archivo local -->
+          <div style="border-top:1px solid var(--border);padding-top:20px;">
+            <div style="font-size:13px;font-weight:600;margin-bottom:10px;">📂 Restaurar desde Archivo</div>
+            <p style="color:var(--muted);font-size:12px;margin-bottom:14px;line-height:1.6;">
+              Sube un <strong style="color:var(--text)">.zip</strong> o <strong style="color:var(--text)">.json</strong> generado por Horix.
+            </p>
+            <div id="restore-drop" onclick="document.getElementById('restore-file').click()"
+              style="border:2px dashed var(--border);border-radius:12px;padding:24px;text-align:center;cursor:pointer;margin-bottom:12px;transition:border-color 0.2s;"
+              onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'"
+              ondragover="event.preventDefault();this.style.borderColor='var(--accent)'"
+              ondragleave="this.style.borderColor='var(--border)'"
+              ondrop="handleRestoreDrop(event)">
+              <div style="font-size:28px;margin-bottom:6px;">📂</div>
+              <div style="font-size:13px;color:var(--muted);">Clic o arrastra tu archivo <strong style="color:var(--text)">.zip</strong> / <strong style="color:var(--text)">.json</strong></div>
+              <div id="restore-filename" style="margin-top:6px;font-size:12px;color:var(--accent);display:none;"></div>
+            </div>
+            <input type="file" id="restore-file" accept=".zip,.json" style="display:none"/>
+            <button class="btn btn-danger" id="btn-restaurar" onclick="restaurarBackup()" disabled style="width:100%;justify-content:center;padding:11px;opacity:0.5;">
+              ♻️ Restaurar desde Archivo
+            </button>
+          </div>
+
           <div id="restore-ok" style="display:none;margin-top:14px;padding:10px 14px;background:rgba(79,190,150,0.1);border:1px solid rgba(79,190,150,0.3);border-radius:9px;font-size:13px;color:var(--success);"></div>
           <div id="restore-err" style="display:none;margin-top:14px;padding:10px 14px;background:rgba(231,76,60,0.1);border:1px solid rgba(231,76,60,0.3);border-radius:9px;font-size:13px;color:var(--danger);"></div>
         </div>
@@ -1498,7 +1515,7 @@ async function navigate(page) {
   if (page==='usuarios')   renderUsuarios();
   if (page==='centros')    renderCentros();
   if (page==='smtp')       cargarSmtp();
-  if (page==='backup')     { initBackupListeners(); cargarUltimoBackup(); }
+  if (page==='backup')     { initBackupListeners(); cargarUltimoBackup(); cargarListaBackups(); }
   if (page==='personalizacion') { cargarLogoPreview(); }
 }
 
@@ -2934,6 +2951,99 @@ async function cargarUltimoBackup() {
     none.style.display = 'block';
   }
 }
+
+async function cargarListaBackups() {
+  const loading = document.getElementById('lista-backups-loading');
+  const none    = document.getElementById('lista-backups-none');
+  const body    = document.getElementById('lista-backups-body');
+  if (!loading || !none || !body) return;
+
+  loading.style.display = 'block';
+  none.style.display    = 'none';
+  body.style.display    = 'none';
+
+  try {
+    const lista = await GET('/api/backup/lista');
+    loading.style.display = 'none';
+
+    if (!lista || !lista.length) {
+      none.style.display = 'block';
+      return;
+    }
+
+    body.style.display = 'flex';
+    body.innerHTML = lista.map(function(b) {
+      const fecha  = new Date(b.fecha).toLocaleString('es-CO', { timeZone: 'America/Bogota', dateStyle: 'medium', timeStyle: 'short' });
+      const tamaño = b.tamaño > 1024 * 1024
+        ? (b.tamaño / 1024 / 1024).toFixed(1) + ' MB'
+        : (b.tamaño / 1024).toFixed(0) + ' KB';
+      return '<div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:12px 14px;display:flex;align-items:center;justify-content:space-between;gap:12px;">'
+        + '<div style="min-width:0;">'
+        + '<div style="font-size:12px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="' + b.nombre + '">📦 ' + b.nombre + '</div>'
+        + '<div style="font-size:11px;color:var(--muted);margin-top:2px;">📅 ' + fecha + ' &nbsp;·&nbsp; ' + tamaño + '</div>'
+        + '</div>'
+        + '<div style="display:flex;gap:6px;flex-shrink:0;">'
+        + '<button class="btn btn-secondary btn-sm bk-btn-download" data-nombre="' + b.nombre + '" title="Descargar">⬇️</button>'
+        + '<button class="btn btn-sm bk-btn-restore" data-nombre="' + b.nombre + '" title="Restaurar este backup" style="background:rgba(247,97,79,0.1);color:var(--danger);border:1px solid rgba(247,97,79,0.3);">♻️ Restaurar</button>'
+        + '</div>'
+        + '</div>';
+    }).join('');
+
+    // Event listeners via data-attributes
+    body.querySelectorAll('.bk-btn-download').forEach(function(btn) {
+      btn.addEventListener('click', function() { descargarBackupAutomatico(this.dataset.nombre); });
+    });
+    body.querySelectorAll('.bk-btn-restore').forEach(function(btn) {
+      btn.addEventListener('click', function() { restaurarBackupLocal(this.dataset.nombre); });
+    });
+
+  } catch(e) {
+    loading.style.display = 'none';
+    none.style.display    = 'block';
+    none.textContent      = 'Error cargando backups: ' + e.message;
+  }
+}
+
+function descargarBackupAutomatico(nombre) {
+  const a = document.createElement('a');
+  a.href = API + '/api/backup/descargar/' + encodeURIComponent(nombre);
+  a.setAttribute('download', nombre);
+  // Para peticiones autenticadas usamos fetch y blob
+  fetch(API + '/api/backup/descargar/' + encodeURIComponent(nombre), {
+    headers: { 'Authorization': 'Bearer ' + sesion.token }
+  }).then(function(r) {
+    if (!r.ok) { showToast('Error al descargar el backup', 'error'); return; }
+    return r.blob();
+  }).then(function(blob) {
+    if (!blob) return;
+    const url = URL.createObjectURL(blob);
+    a.href = url;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }).catch(function(e) { showToast('Error: ' + e.message, 'error'); });
+}
+
+async function restaurarBackupLocal(nombre) {
+  if (!confirm('¿Restaurar el backup "' + nombre + '"?\n\nLos datos actuales serán reemplazados. Tu sesión de administrador no se verá afectada.')) return;
+  const ok  = document.getElementById('restore-ok');
+  const err = document.getElementById('restore-err');
+  ok.style.display = 'none';
+  err.style.display = 'none';
+  showToast('Restaurando...', 'info');
+  try {
+    const res = await POST('/api/restore/local/' + encodeURIComponent(nombre), {});
+    ok.textContent = '✓ ' + (res.mensaje || 'Restauración completada correctamente');
+    ok.style.display = 'block';
+    showToast('Restauración completada', 'success');
+  } catch(e) {
+    err.textContent = '✗ ' + e.message;
+    err.style.display = 'block';
+    showToast('Error en la restauración', 'error');
+  }
+}
+
 
 async function descargarBackup() {
   setLoading('btn-descargar-backup', true);
