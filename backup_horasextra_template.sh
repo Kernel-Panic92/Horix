@@ -93,8 +93,8 @@ if [ "$USAR_NAS" = "true" ]; then
   MONTAR_DESMONTADO=false
   if ! mountpoint -q "$SMB_MOUNT" 2>/dev/null; then
     echo "$LOG_TAG  📡 Montando share $SMB_SERVER..."
-    mkdir -p "$SMB_MOUNT"
-    mount -t cifs "$SMB_SERVER" "$SMB_MOUNT" \
+    sudo mkdir -p "$SMB_MOUNT"
+    sudo mount -t cifs "$SMB_SERVER" "$SMB_MOUNT" \
       -o username="$SMB_USER",password="$SMB_PASS",iocharset=utf8,vers=3.0,noperm 2>/dev/null
     if [ $? -eq 0 ]; then
       echo "$LOG_TAG  ✓ Share montado"
@@ -115,7 +115,7 @@ if [ "$USAR_NAS" = "true" ]; then
   fi
 
   if [ "$MONTAR_DESMONTADO" = true ]; then
-    umount "$SMB_MOUNT" 2>/dev/null && echo "$LOG_TAG  📡 Share desmontado"
+    sudo umount "$SMB_MOUNT" 2>/dev/null && echo "$LOG_TAG  📡 Share desmontado"
   fi
 fi
 
