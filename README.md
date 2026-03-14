@@ -94,6 +94,7 @@ horix/
 ├── install.sh                      # Instalador interactivo
 ├── backup_horasextra_template.sh   # Plantilla de backup (el instalador genera el .sh real)
 ├── package.json
+├── updatehorix.sh                  # Script de actualizacion
 └── LICENSE
 ```
 
