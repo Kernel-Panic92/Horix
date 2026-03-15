@@ -633,7 +633,7 @@
     </div>
     <div class="form-group" style="margin-bottom:24px;">
       <label>Contraseña</label>
-      <input type="password" id="login-password" placeholder="Escribe tu contraseña" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()"/>
+      <input type="password" id="login-password" placeholder="••••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()"/>
     </div>
     <button class="btn btn-primary" id="btn-login" onclick="doLogin()" style="width:100%;justify-content:center;padding:13px;">
       Ingresar →
@@ -694,7 +694,7 @@
     <div class="sidebar-footer">
 
       <div style="margin-top:10px;text-align:center;font-size:10px;color:var(--muted);line-height:1.6;opacity:0.7;">
-        <div>v2.3.0 — HORIX</div>
+        <div>v2.2.0 — HORIX</div>
         <div>© 2025 Edgar Velasquez</div>
         <div>Todos los derechos reservados</div>
       </div>
@@ -1390,6 +1390,7 @@ async function doLogin() {
   const email    = document.getElementById('login-email').value.trim();
   const password = document.getElementById('login-password').value;
   const errEl    = document.getElementById('login-error');
+  const btnLogin = document.getElementById('btn-login');
   errEl.classList.remove('show');
   if (!email||!password) { errEl.textContent='Ingresa tu correo y contraseña.'; errEl.classList.add('show'); return; }
   setLoading('btn-login', true);
@@ -1399,11 +1400,28 @@ async function doLogin() {
       body: JSON.stringify({email, password})
     });
     const json = await data.json();
-    if (!data.ok) { errEl.textContent = json.error || 'Error al iniciar sesión'; errEl.classList.add('show'); return; }
+    if (!data.ok) {
+      errEl.textContent = json.error || 'Error al iniciar sesión';
+      errEl.classList.add('show');
+      // Si es bloqueo por fuerza bruta, deshabilitar el botón temporalmente
+      if (data.status === 429) {
+        btnLogin.textContent = 'Bloqueado ⏳';
+        setTimeout(function() {
+          btnLogin.textContent = 'Ingresar →';
+          setLoading('btn-login', false);
+        }, 30000);
+        return;
+      }
+      setLoading('btn-login', false);
+      return;
+    }
     sesion = { token: json.token, ...json.usuario };
     localStorage.setItem('he_sesion', JSON.stringify(sesion));
     iniciarApp();
-  } catch { errEl.textContent = 'No se pudo conectar al servidor.'; errEl.classList.add('show'); }
+  } catch {
+    errEl.textContent = 'No se pudo conectar al servidor.';
+    errEl.classList.add('show');
+  }
   setLoading('btn-login', false);
 }
 
@@ -1970,14 +1988,14 @@ function renderHistorial() {
   if(sedeF)  data=data.filter(r=>(r.sede||empleados.find(e=>e.id===r.empleadoId)?.sede||'')=== sedeF);
 
   // Ocultar columna acciones para consulta
-  document.getElementById('hist-th-acciones').style.display = soyAdmin() ? '' : 'none';
+  document.getElementById('hist-th-acciones').style.display = puedoEditar() ? '' : 'none';
 
   const tbody=document.getElementById('hist-body');
   if (!data.length) { tbody.innerHTML=`<tr><td colspan="10"><div class="empty"><div class="empty-icon">🔍</div><div class="empty-text">No se encontraron registros</div></div></td></tr>`; return; }
   tbody.innerHTML=data.map(r=>{
     const emp=empleados.find(e=>e.id===r.empleadoId);
     const nom=nominas.find(n=>n.id===r.nominaId);
-    const acciones = soyAdmin() ? `<td><div class="actions-cell"><button class="btn btn-danger btn-sm" onclick="eliminarRegistro('${r.id}')">🗑</button></div></td>` : '<td style="display:none"></td>';
+    const acciones = puedoEditar() ? `<td><div class="actions-cell"><button class="btn btn-danger btn-sm" onclick="eliminarRegistro('${r.id}')">🗑</button></div></td>` : '<td style="display:none"></td>';
     const sedeBadge=r.sede||emp?.sede||'—';
     return `<tr>
       <td><strong>${emp?emp.nombre:'—'}</strong></td><td>${emp?emp.cargo:'—'}</td>
