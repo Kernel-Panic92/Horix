@@ -293,12 +293,10 @@ NGINXEOF
 
   HTTPS_URL="https://$HTTPS_DOMAIN:$HTTPS_PORT"
 fi
-
 # ── 12. Fail2ban
 echo ""
 echo -e "${AZUL}── Protección contra fuerza bruta (opcional) ─${RESET}"
 read -p "  ¿Instalar y configurar Fail2ban? [s/N]: " CONF_F2B
-
 if [[ "$CONF_F2B" =~ ^[Ss]$ ]]; then
   if ! command -v fail2ban-client &>/dev/null; then
     info "Instalando Fail2ban..."
@@ -306,42 +304,47 @@ if [[ "$CONF_F2B" =~ ^[Ss]$ ]]; then
   fi
   ok "Fail2ban: $(fail2ban-client --version 2>&1 | head -1)"
 
-  # Crear filtro para detectar intentos fallidos de login en Nginx
+  NGINX_LOG="/var/log/nginx/access.log"
+  F2B_PORT=${HTTPS_PORT:-$PUERTO}
+
+  if [[ ! "$CONF_HTTPS" =~ ^[Ss]$ ]]; then
+    warn "HTTPS no configurado — Fail2ban solo funcionará si Nginx está instalado y activo."
+    warn "Si Nginx no está activo, los intentos fallidos no serán detectados."
+  fi
+
   sudo tee /etc/fail2ban/filter.d/horix-login.conf > /dev/null << 'F2BFILTER'
 [Definition]
 failregex = ^<HOST> .* "POST /api/auth/login HTTP.*" 401
 ignoreregex =
 F2BFILTER
 
-  # Configurar jail
-  NGINX_LOG="/var/log/nginx/access.log"
-  F2B_PORT=${HTTPS_PORT:-8443}
   sudo tee /etc/fail2ban/jail.d/horix.conf > /dev/null << F2BJAIL
 [horix-login]
 enabled   = true
 port      = $F2B_PORT,80,443
 filter    = horix-login
 logpath   = $NGINX_LOG
-maxretry  = 10
+backend   = polling
+maxretry  = 5
 findtime  = 300
-bantime   = 1800
+bantime   = 600
+ignoreip  = 127.0.0.1/8
 F2BJAIL
-
-  # Configurar sudoers para mount si se configuró NAS
-  if [[ "$USAR_NAS" == "true" ]]; then
-    echo "$USER ALL=(ALL) NOPASSWD: /bin/mount, /bin/umount, /usr/bin/mkdir, /bin/mkdir" | \
-      sudo tee /etc/sudoers.d/horix-mount > /dev/null
-    sudo chmod 440 /etc/sudoers.d/horix-mount
-    ok "Permisos sudo para mount configurados"
-  fi
 
   sudo systemctl enable fail2ban
   sudo systemctl restart fail2ban
-  ok "Fail2ban activo"
-
+  ok "Fail2ban activo en puerto $F2B_PORT"
   info "Comandos útiles de Fail2ban:"
-  echo -e "    sudo fail2ban-client status horix-login   # Ver IPs bloqueadas"
-  echo -e "    sudo fail2ban-client set horix-login unbanip <IP>  # Desbloquear IP"
+  echo -e "    sudo fail2ban-client status horix-login"
+  echo -e "    sudo fail2ban-client set horix-login unbanip <IP>"
+fi
+
+# Configurar sudoers para mount NAS (independiente de Fail2ban)
+if [[ "$USAR_NAS" == "true" ]]; then
+  echo "$USER ALL=(ALL) NOPASSWD: /bin/mount, /bin/umount, /usr/bin/mkdir, /bin/mkdir" | \
+    sudo tee /etc/sudoers.d/horix-mount > /dev/null
+  sudo chmod 440 /etc/sudoers.d/horix-mount
+  ok "Permisos sudo para mount configurados"
 fi
 
 # ── 13. Resumen final

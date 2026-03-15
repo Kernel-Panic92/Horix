@@ -1,32 +1,22 @@
 #!/bin/bash
 # ═══════════════════════════════════════════════════════════════
 #  update.sh — Actualizador de Horix (no reinstala, no borra datos)
-#
-#  Uso:
-#    chmod +x update.sh
-#    ./update.sh
 # ═══════════════════════════════════════════════════════════════
-
 set -e
-
 VERDE="\033[0;32m"; AMARILLO="\033[1;33m"; ROJO="\033[0;31m"; AZUL="\033[0;34m"; RESET="\033[0m"
 ok()   { echo -e "${VERDE}  ✓ $1${RESET}"; }
 info() { echo -e "${AZUL}  → $1${RESET}"; }
 warn() { echo -e "${AMARILLO}  ⚠ $1${RESET}"; }
 err()  { echo -e "${ROJO}  ✗ $1${RESET}"; exit 1; }
-
 INSTALL_DIR="$(pwd)"
-
 echo ""
 echo -e "${AZUL}══════════════════════════════════════════════${RESET}"
 echo -e "${AZUL}   Horix — Actualizador${RESET}"
 echo -e "${AZUL}══════════════════════════════════════════════${RESET}"
 echo ""
-
 [[ "$OSTYPE" != "linux-gnu"* ]] && err "Este script es para Linux (Ubuntu/Debian)."
 command -v pm2 &>/dev/null || err "PM2 no encontrado. ¿Está instalado Horix?"
 [[ ! -f "server.js" ]] && err "No se encontró server.js. Ejecuta desde el directorio de Horix."
-
 # ── 1. Verificar repo git
 if [[ ! -d ".git" ]]; then
   warn "No es un repositorio git. Solo se actualizarán dependencias y configuraciones opcionales."
@@ -34,8 +24,7 @@ if [[ ! -d ".git" ]]; then
 else
   TIENE_GIT=true
 fi
-
-# ── 2. Backup preventivo antes de actualizar
+# ── 2. Backup preventivo
 info "Haciendo backup preventivo..."
 BACKUP_PREV="$HOME/backups/horix/pre_update_$(date +%Y%m%d_%H%M%S).db"
 mkdir -p "$(dirname "$BACKUP_PREV")"
@@ -45,41 +34,48 @@ if [[ -f "horas_extra.db" ]]; then
 else
   warn "No se encontró horas_extra.db — omitiendo backup preventivo"
 fi
-
-# ── 3. Git pull
+# ── 3. Git pull — robusto, no mata el script si falla
 if [[ "$TIENE_GIT" == "true" ]]; then
   info "Obteniendo últimos cambios del repositorio..."
-  git fetch origin
-  LOCAL=$(git rev-parse HEAD)
-  REMOTE=$(git rev-parse origin/main 2>/dev/null || git rev-parse origin/master 2>/dev/null)
-  if [[ "$LOCAL" == "$REMOTE" ]]; then
+  git fetch origin 2>/dev/null || warn "No se pudo conectar al repositorio remoto"
+
+  # Detectar rama principal de forma segura
+  RAMA=$(git remote show origin 2>/dev/null | grep 'HEAD branch' | awk '{print $NF}')
+  RAMA=${RAMA:-main}
+
+  LOCAL=$(git rev-parse HEAD 2>/dev/null || echo "")
+  REMOTE=$(git rev-parse "origin/$RAMA" 2>/dev/null || echo "")
+
+  if [[ -z "$REMOTE" ]]; then
+    warn "No se pudo verificar la versión remota — continuando con versión local"
+    SIN_CAMBIOS=true
+  elif [[ "$LOCAL" == "$REMOTE" ]]; then
     ok "Ya estás en la versión más reciente"
     SIN_CAMBIOS=true
   else
-    git pull origin main 2>/dev/null || git pull origin master 2>/dev/null
-    ok "Código actualizado"
+    # pull sin set -e para no morir si hay conflictos
+    if git pull origin "$RAMA"; then
+      ok "Código actualizado desde rama '$RAMA'"
+    else
+      warn "git pull falló — continuando con versión local"
+    fi
     SIN_CAMBIOS=false
   fi
 fi
-
-# ── 4. Actualizar dependencias npm
+# ── 4. Dependencias npm
 info "Actualizando dependencias npm..."
 npm install --production
 ok "Dependencias actualizadas"
-
-# ── 5. Reiniciar aplicación
+# ── 5. Reiniciar
 info "Reiniciando Horix..."
 pm2 restart horix
 ok "Horix reiniciado"
-
-# ── 6. Opcionales — configuraciones nuevas
+# ── 6. Opcionales
 echo ""
 echo -e "${AZUL}── Configuraciones opcionales ───────────────${RESET}"
-
-# ── 6a. Fail2ban
+# Fail2ban
 if command -v fail2ban-client &>/dev/null; then
   ok "Fail2ban ya instalado ($(fail2ban-client --version 2>&1 | head -1))"
-  # Verificar si el jail de Horix existe
   if [[ ! -f "/etc/fail2ban/jail.d/horix.conf" ]]; then
     warn "Jail de Horix no configurado."
     read -p "  ¿Configurar Fail2ban para Horix ahora? [s/N]: " CONF_F2B
@@ -92,41 +88,34 @@ else
   read -p "  ¿Instalar y configurar Fail2ban? [s/N]: " CONF_F2B
   CONF_F2B=${CONF_F2B:-N}
 fi
-
 if [[ "$CONF_F2B" =~ ^[Ss]$ ]]; then
   if ! command -v fail2ban-client &>/dev/null; then
-    info "Instalando Fail2ban..."
-    sudo apt-get install -y fail2ban
+    info "Instalando Fail2ban..."; sudo apt-get install -y fail2ban
   fi
-
   read -p "  Puerto HTTPS de Horix [8443]: " F2B_PORT
   F2B_PORT=${F2B_PORT:-8443}
-
   sudo tee /etc/fail2ban/filter.d/horix-login.conf > /dev/null << 'F2BFILTER'
 [Definition]
 failregex = ^<HOST> .* "POST /api/auth/login HTTP.*" 401
 ignoreregex =
 F2BFILTER
-
   sudo tee /etc/fail2ban/jail.d/horix.conf > /dev/null << F2BJAIL
 [horix-login]
 enabled   = true
 port      = $F2B_PORT,80,443
 filter    = horix-login
 logpath   = /var/log/nginx/access.log
-maxretry  = 10
+backend   = polling
+maxretry  = 5
 findtime  = 300
-bantime   = 1800
+bantime   = 600
+ignoreip  = 127.0.0.1/8
 F2BJAIL
-
   sudo systemctl enable fail2ban
   sudo systemctl restart fail2ban
   ok "Fail2ban configurado"
-  echo -e "    sudo fail2ban-client status horix-login   # Ver IPs bloqueadas"
-  echo -e "    sudo fail2ban-client set horix-login unbanip <IP>  # Desbloquear"
 fi
-
-# ── 6b. Sudoers para mount NAS (si no está)
+# Sudoers NAS
 if [[ -f "backup_horasextra.sh" ]]; then
   if grep -q 'USAR_NAS="true"' backup_horasextra.sh 2>/dev/null; then
     if [[ ! -f "/etc/sudoers.d/horix-mount" ]]; then
@@ -143,14 +132,12 @@ if [[ -f "backup_horasextra.sh" ]]; then
     fi
   fi
 fi
-
-# ── 6c. Let's Encrypt — renovación manual si está configurado
+# Certbot
 if command -v certbot &>/dev/null; then
   ok "Certbot disponible — renovación automática activa"
   CERT_STATUS=$(sudo certbot certificates 2>/dev/null | grep -E "VALID|EXPIRED|Expiry" | head -3)
   [[ -n "$CERT_STATUS" ]] && echo -e "    $CERT_STATUS"
 fi
-
 # ── 7. Resumen
 echo ""
 echo -e "${VERDE}══════════════════════════════════════════════${RESET}"
