@@ -1444,6 +1444,7 @@ async function doLogin() {
   const email    = document.getElementById('login-email').value.trim();
   const password = document.getElementById('login-password').value;
   const errEl    = document.getElementById('login-error');
+  const btnLogin = document.getElementById('btn-login');
   errEl.classList.remove('show');
   if (!email||!password) { errEl.textContent='Ingresa tu correo y contraseña.'; errEl.classList.add('show'); return; }
   setLoading('btn-login', true);
@@ -1453,11 +1454,27 @@ async function doLogin() {
       body: JSON.stringify({email, password})
     });
     const json = await data.json();
-    if (!data.ok) { errEl.textContent = json.error || 'Error al iniciar sesión'; errEl.classList.add('show'); return; }
+    if (!data.ok) {
+      errEl.textContent = json.error || 'Error al iniciar sesión';
+      errEl.classList.add('show');
+      if (data.status === 429) {
+        btnLogin.textContent = 'Bloqueado ⏳';
+        setTimeout(function() {
+          btnLogin.textContent = 'Ingresar →';
+          setLoading('btn-login', false);
+        }, 30000);
+        return;
+      }
+      setLoading('btn-login', false);
+      return;
+    }
     sesion = { token: json.token, ...json.usuario };
     localStorage.setItem('he_sesion', JSON.stringify(sesion));
     iniciarApp();
-  } catch { errEl.textContent = 'No se pudo conectar al servidor.'; errEl.classList.add('show'); }
+  } catch {
+    errEl.textContent = 'No se pudo conectar al servidor.';
+    errEl.classList.add('show');
+  }
   setLoading('btn-login', false);
 }
 
