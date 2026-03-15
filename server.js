@@ -258,7 +258,7 @@ const todosRoles     = autenticar(['admin', 'rrhh', 'consulta', 'operador']);
 // RATE LIMITING — protección fuerza bruta login
 // ─────────────────────────────────────────────
 const loginAttempts  = new Map();
-const LOGIN_MAX_ATTEMPTS = 10;
+const LOGIN_MAX_ATTEMPTS = 5;
 const LOGIN_WINDOW_MS    = 5 * 60 * 1000;   // 5 min
 const LOGIN_BLOCK_MS     = 30 * 60 * 1000;  // 30 min
 
