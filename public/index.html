@@ -614,7 +614,79 @@
   }
 
 </style>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js">
+// ═══════════════════════════════════════════════════
+// SEGURIDAD — Rate Limiter Status
+// ═══════════════════════════════════════════════════
+async function cargarSeguridadStatus() {
+  const loadingEl  = document.getElementById('sec-bloqueadas-loading');
+  const noneEl     = document.getElementById('sec-bloqueadas-none');
+  const bodyEl     = document.getElementById('sec-bloqueadas-body');
+  const seguNoneEl = document.getElementById('sec-seguimiento-none');
+  const seguBodyEl = document.getElementById('sec-seguimiento-body');
+  if (loadingEl) loadingEl.style.display = 'block';
+  if (noneEl)    noneEl.style.display    = 'none';
+  if (bodyEl)    bodyEl.style.display    = 'none';
+  try {
+    const data = await GET('/api/auth/ratelimit-status');
+    if (!data) return;
+    document.getElementById('sec-bloqueadas').textContent  = data.totalBloqueadas;
+    document.getElementById('sec-seguimiento').textContent = data.totalIpsEnSeguimiento;
+    document.getElementById('sec-cfg-intentos').textContent = data.configuracion.maxIntentos + ' intentos';
+    document.getElementById('sec-cfg-ventana').textContent  = data.configuracion.ventanaMinutos + ' minutos';
+    document.getElementById('sec-cfg-bloqueo').textContent  = data.configuracion.bloqueoMinutos + ' minutos';
+    if (loadingEl) loadingEl.style.display = 'none';
+    if (!data.bloqueadas.length) {
+      if (noneEl) noneEl.style.display = 'block';
+    } else {
+      if (bodyEl) {
+        bodyEl.style.display = 'flex';
+        bodyEl.innerHTML = data.bloqueadas.map(function(b) {
+          return '<div style="background:rgba(247,97,79,0.08);border:1px solid rgba(247,97,79,0.2);border-radius:10px;padding:12px 14px;display:flex;align-items:center;justify-content:space-between;gap:12px;">'
+            + '<div><div style="font-size:13px;font-weight:600;color:var(--text);font-family:monospace;">🔒 ' + b.ip + '</div>'
+            + '<div style="font-size:11px;color:var(--muted);margin-top:3px;">' + b.intentos + ' intentos · Libera: ' + b.bloqueadaHasta + ' (' + b.minutosRestantes + ' min)</div></div>'
+            + '<button class="btn btn-sm sec-btn-desbloquear" data-ip="' + b.ip + '" style="background:rgba(79,190,150,0.1);color:var(--success);border:1px solid rgba(79,190,150,0.3);white-space:nowrap;">🔓 Desbloquear</button>'
+            + '</div>';
+        }).join('');
+        bodyEl.querySelectorAll('.sec-btn-desbloquear').forEach(function(btn) {
+          btn.addEventListener('click', function() { desbloquearIP(this.dataset.ip); });
+        });
+      }
+    }
+    if (!data.enSeguimiento.length) {
+      if (seguNoneEl) seguNoneEl.style.display = 'block';
+      if (seguBodyEl) seguBodyEl.innerHTML = '';
+    } else {
+      if (seguNoneEl) seguNoneEl.style.display = 'none';
+      if (seguBodyEl) {
+        seguBodyEl.innerHTML = data.enSeguimiento.map(function(s) {
+          const pct = Math.round((s.intentos / data.configuracion.maxIntentos) * 100);
+          const color = pct >= 70 ? 'var(--danger)' : pct >= 40 ? 'var(--warning)' : 'var(--muted)';
+          return '<div style="background:var(--surface2);border-radius:8px;padding:10px 12px;">'
+            + '<div style="display:flex;justify-content:space-between;margin-bottom:5px;">'
+            + '<span style="font-size:12px;font-family:monospace;color:var(--text);">' + s.ip + '</span>'
+            + '<span style="font-size:11px;color:' + color + ';">' + s.intentos + '/' + data.configuracion.maxIntentos + ' intentos</span></div>'
+            + '<div style="background:var(--border);border-radius:4px;height:4px;overflow:hidden;">'
+            + '<div style="height:100%;background:' + color + ';width:' + pct + '%;border-radius:4px;transition:width 0.3s;"></div></div></div>';
+        }).join('');
+      }
+    }
+  } catch(e) {
+    if (loadingEl) loadingEl.style.display = 'none';
+    showToast('Error cargando estado de seguridad: ' + e.message, 'error');
+  }
+}
+
+async function desbloquearIP(ip) {
+  if (!confirm('¿Desbloquear la IP ' + ip + '?')) return;
+  try {
+    await DEL('/api/auth/ratelimit-status/' + encodeURIComponent(ip));
+    showToast('IP desbloqueada: ' + ip, 'success');
+    cargarSeguridadStatus();
+  } catch(e) { showToast('Error: ' + e.message, 'error'); }
+}
+
+</script>
 </head>
 <body>
 
@@ -1390,6 +1462,7 @@ async function doLogin() {
   const email    = document.getElementById('login-email').value.trim();
   const password = document.getElementById('login-password').value;
   const errEl    = document.getElementById('login-error');
+  const btnLogin = document.getElementById('btn-login');
   errEl.classList.remove('show');
   if (!email||!password) { errEl.textContent='Ingresa tu correo y contraseña.'; errEl.classList.add('show'); return; }
   setLoading('btn-login', true);
@@ -1399,11 +1472,27 @@ async function doLogin() {
       body: JSON.stringify({email, password})
     });
     const json = await data.json();
-    if (!data.ok) { errEl.textContent = json.error || 'Error al iniciar sesión'; errEl.classList.add('show'); return; }
+    if (!data.ok) {
+      errEl.textContent = json.error || 'Error al iniciar sesión';
+      errEl.classList.add('show');
+      if (data.status === 429) {
+        btnLogin.textContent = 'Bloqueado ⏳';
+        setTimeout(function() {
+          btnLogin.textContent = 'Ingresar →';
+          setLoading('btn-login', false);
+        }, 30000);
+        return;
+      }
+      setLoading('btn-login', false);
+      return;
+    }
     sesion = { token: json.token, ...json.usuario };
     localStorage.setItem('he_sesion', JSON.stringify(sesion));
     iniciarApp();
-  } catch { errEl.textContent = 'No se pudo conectar al servidor.'; errEl.classList.add('show'); }
+  } catch {
+    errEl.textContent = 'No se pudo conectar al servidor.';
+    errEl.classList.add('show');
+  }
   setLoading('btn-login', false);
 }
 
@@ -1970,14 +2059,14 @@ function renderHistorial() {
   if(sedeF)  data=data.filter(r=>(r.sede||empleados.find(e=>e.id===r.empleadoId)?.sede||'')=== sedeF);
 
   // Ocultar columna acciones para consulta
-  document.getElementById('hist-th-acciones').style.display = soyAdmin() ? '' : 'none';
+  document.getElementById('hist-th-acciones').style.display = puedoEditar() ? '' : 'none';
 
   const tbody=document.getElementById('hist-body');
   if (!data.length) { tbody.innerHTML=`<tr><td colspan="10"><div class="empty"><div class="empty-icon">🔍</div><div class="empty-text">No se encontraron registros</div></div></td></tr>`; return; }
   tbody.innerHTML=data.map(r=>{
     const emp=empleados.find(e=>e.id===r.empleadoId);
     const nom=nominas.find(n=>n.id===r.nominaId);
-    const acciones = soyAdmin() ? `<td><div class="actions-cell"><button class="btn btn-danger btn-sm" onclick="eliminarRegistro('${r.id}')">🗑</button></div></td>` : '<td style="display:none"></td>';
+    const acciones = puedoEditar() ? `<td><div class="actions-cell"><button class="btn btn-danger btn-sm" onclick="eliminarRegistro('${r.id}')">🗑</button></div></td>` : '<td style="display:none"></td>';
     const sedeBadge=r.sede||emp?.sede||'—';
     return `<tr>
       <td><strong>${emp?emp.nombre:'—'}</strong></td><td>${emp?emp.cargo:'—'}</td>
@@ -3260,6 +3349,78 @@ async function ejecutarGeneracion(lista) {
   else showToast(`${creados} creados, ${errores} errores.`, 'error');
   setLoading('btn-generar-nom', false);
 }
+
+// ═══════════════════════════════════════════════════
+// SEGURIDAD — Rate Limiter Status
+// ═══════════════════════════════════════════════════
+async function cargarSeguridadStatus() {
+  const loadingEl  = document.getElementById('sec-bloqueadas-loading');
+  const noneEl     = document.getElementById('sec-bloqueadas-none');
+  const bodyEl     = document.getElementById('sec-bloqueadas-body');
+  const seguNoneEl = document.getElementById('sec-seguimiento-none');
+  const seguBodyEl = document.getElementById('sec-seguimiento-body');
+  if (loadingEl) loadingEl.style.display = 'block';
+  if (noneEl)    noneEl.style.display    = 'none';
+  if (bodyEl)    bodyEl.style.display    = 'none';
+  try {
+    const data = await GET('/api/auth/ratelimit-status');
+    if (!data) return;
+    document.getElementById('sec-bloqueadas').textContent  = data.totalBloqueadas;
+    document.getElementById('sec-seguimiento').textContent = data.totalIpsEnSeguimiento;
+    document.getElementById('sec-cfg-intentos').textContent = data.configuracion.maxIntentos + ' intentos';
+    document.getElementById('sec-cfg-ventana').textContent  = data.configuracion.ventanaMinutos + ' minutos';
+    document.getElementById('sec-cfg-bloqueo').textContent  = data.configuracion.bloqueoMinutos + ' minutos';
+    if (loadingEl) loadingEl.style.display = 'none';
+    if (!data.bloqueadas.length) {
+      if (noneEl) noneEl.style.display = 'block';
+    } else {
+      if (bodyEl) {
+        bodyEl.style.display = 'flex';
+        bodyEl.innerHTML = data.bloqueadas.map(function(b) {
+          return '<div style="background:rgba(247,97,79,0.08);border:1px solid rgba(247,97,79,0.2);border-radius:10px;padding:12px 14px;display:flex;align-items:center;justify-content:space-between;gap:12px;">'
+            + '<div><div style="font-size:13px;font-weight:600;color:var(--text);font-family:monospace;">🔒 ' + b.ip + '</div>'
+            + '<div style="font-size:11px;color:var(--muted);margin-top:3px;">' + b.intentos + ' intentos · Libera: ' + b.bloqueadaHasta + ' (' + b.minutosRestantes + ' min)</div></div>'
+            + '<button class="btn btn-sm sec-btn-desbloquear" data-ip="' + b.ip + '" style="background:rgba(79,190,150,0.1);color:var(--success);border:1px solid rgba(79,190,150,0.3);white-space:nowrap;">🔓 Desbloquear</button>'
+            + '</div>';
+        }).join('');
+        bodyEl.querySelectorAll('.sec-btn-desbloquear').forEach(function(btn) {
+          btn.addEventListener('click', function() { desbloquearIP(this.dataset.ip); });
+        });
+      }
+    }
+    if (!data.enSeguimiento.length) {
+      if (seguNoneEl) seguNoneEl.style.display = 'block';
+      if (seguBodyEl) seguBodyEl.innerHTML = '';
+    } else {
+      if (seguNoneEl) seguNoneEl.style.display = 'none';
+      if (seguBodyEl) {
+        seguBodyEl.innerHTML = data.enSeguimiento.map(function(s) {
+          const pct = Math.round((s.intentos / data.configuracion.maxIntentos) * 100);
+          const color = pct >= 70 ? 'var(--danger)' : pct >= 40 ? 'var(--warning)' : 'var(--muted)';
+          return '<div style="background:var(--surface2);border-radius:8px;padding:10px 12px;">'
+            + '<div style="display:flex;justify-content:space-between;margin-bottom:5px;">'
+            + '<span style="font-size:12px;font-family:monospace;color:var(--text);">' + s.ip + '</span>'
+            + '<span style="font-size:11px;color:' + color + ';">' + s.intentos + '/' + data.configuracion.maxIntentos + ' intentos</span></div>'
+            + '<div style="background:var(--border);border-radius:4px;height:4px;overflow:hidden;">'
+            + '<div style="height:100%;background:' + color + ';width:' + pct + '%;border-radius:4px;transition:width 0.3s;"></div></div></div>';
+        }).join('');
+      }
+    }
+  } catch(e) {
+    if (loadingEl) loadingEl.style.display = 'none';
+    showToast('Error cargando estado de seguridad: ' + e.message, 'error');
+  }
+}
+
+async function desbloquearIP(ip) {
+  if (!confirm('¿Desbloquear la IP ' + ip + '?')) return;
+  try {
+    await DEL('/api/auth/ratelimit-status/' + encodeURIComponent(ip));
+    showToast('IP desbloqueada: ' + ip, 'success');
+    cargarSeguridadStatus();
+  } catch(e) { showToast('Error: ' + e.message, 'error'); }
+}
+
 </script>
 </body>
 </html>
