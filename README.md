@@ -23,7 +23,7 @@ chmod +x install.sh
 
 El instalador configura interactivamente:
 
-- Puerto del servidor (default: 3000)
+- Puerto del servidor
 - Nombre de la empresa
 - Email y contraseña del administrador
 - Centro de operación inicial
@@ -97,12 +97,9 @@ horix/
 ├── install.sh                      # Instalador interactivo
 ├── backup_horasextra_template.sh   # Plantilla de backup (el instalador genera el .sh real)
 ├── package.json
-├── update.sh                  # Script de actualizacion
+├── update.sh                       # Script de actualizacion
 └── LICENSE
 ```
-
-> **Nota:** `backup_horasextra.sh` (el script generado tras la instalación) contiene credenciales
-> del cliente y está excluido del repositorio vía `.gitignore`. Solo la plantilla se versiona.
 
 ## Seguridad
 
