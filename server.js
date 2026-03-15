@@ -1039,6 +1039,14 @@ app.delete('/api/logo', soloAdmin, (req, res) => {
   res.json({ ok: true });
 });
 
+// GET /api/version
+app.get('/api/version', (req, res) => {
+  try {
+    const pkg = JSON.parse(fs.readFileSync(path.join(__dirname, 'package.json'), 'utf8'));
+    res.json({ version: pkg.version });
+  } catch { res.json({ version: '—' }); }
+});
+
 // INICIAR
 // ─────────────────────────────────────────────
 app.listen(3000, '0.0.0.0', () => {
