@@ -320,7 +320,7 @@ F2BFILTER
 
   sudo tee /etc/fail2ban/jail.d/horix.conf > /dev/null << F2BJAIL
 [horix-login]
-enabled   = true
+enabled   = false
 port      = $F2B_PORT,80,443
 filter    = horix-login
 logpath   = $NGINX_LOG
