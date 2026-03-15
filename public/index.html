@@ -614,97 +614,7 @@
   }
 
 </style>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js">
-// ═══════════════════════════════════════════════════
-// SEGURIDAD — Rate Limiter Status
-// ═══════════════════════════════════════════════════
-async function cargarSeguridadStatus() {
-  const loadingEl   = document.getElementById('sec-bloqueadas-loading');
-  const noneEl      = document.getElementById('sec-bloqueadas-none');
-  const bodyEl      = document.getElementById('sec-bloqueadas-body');
-  const seguNoneEl  = document.getElementById('sec-seguimiento-none');
-  const seguBodyEl  = document.getElementById('sec-seguimiento-body');
-
-  if (loadingEl) loadingEl.style.display = 'block';
-  if (noneEl)    noneEl.style.display    = 'none';
-  if (bodyEl)    bodyEl.style.display    = 'none';
-
-  try {
-    const data = await GET('/api/auth/ratelimit-status');
-    if (!data) return;
-
-    // Stats
-    document.getElementById('sec-bloqueadas').textContent  = data.totalBloqueadas;
-    document.getElementById('sec-seguimiento').textContent = data.totalIpsEnSeguimiento;
-
-    // Config
-    document.getElementById('sec-cfg-intentos').textContent = data.configuracion.maxIntentos + ' intentos';
-    document.getElementById('sec-cfg-ventana').textContent  = data.configuracion.ventanaMinutos + ' minutos';
-    document.getElementById('sec-cfg-bloqueo').textContent  = data.configuracion.bloqueoMinutos + ' minutos';
-
-    // IPs bloqueadas
-    if (loadingEl) loadingEl.style.display = 'none';
-    if (!data.bloqueadas.length) {
-      if (noneEl) noneEl.style.display = 'block';
-    } else {
-      if (bodyEl) {
-        bodyEl.style.display = 'flex';
-        bodyEl.innerHTML = data.bloqueadas.map(function(b) {
-          return '<div style="background:rgba(247,97,79,0.08);border:1px solid rgba(247,97,79,0.2);border-radius:10px;padding:12px 14px;display:flex;align-items:center;justify-content:space-between;gap:12px;">'
-            + '<div>'
-            + '<div style="font-size:13px;font-weight:600;color:var(--text);font-family:monospace;">🔒 ' + b.ip + '</div>'
-            + '<div style="font-size:11px;color:var(--muted);margin-top:3px;">' + b.intentos + ' intentos · Libera: ' + b.bloqueadaHasta + ' (' + b.minutosRestantes + ' min)</div>'
-            + '</div>'
-            + '<button class="btn btn-sm sec-btn-desbloquear" data-ip="' + b.ip + '" style="background:rgba(79,190,150,0.1);color:var(--success);border:1px solid rgba(79,190,150,0.3);white-space:nowrap;">🔓 Desbloquear</button>'
-            + '</div>';
-        }).join('');
-        bodyEl.querySelectorAll('.sec-btn-desbloquear').forEach(function(btn) {
-          btn.addEventListener('click', function() { desbloquearIP(this.dataset.ip); });
-        });
-      }
-    }
-
-    // IPs en seguimiento
-    if (!data.enSeguimiento.length) {
-      if (seguNoneEl) seguNoneEl.style.display = 'block';
-      if (seguBodyEl) seguBodyEl.innerHTML = '';
-    } else {
-      if (seguNoneEl) seguNoneEl.style.display = 'none';
-      if (seguBodyEl) {
-        seguBodyEl.innerHTML = data.enSeguimiento.map(function(s) {
-          const pct = Math.round((s.intentos / data.configuracion.maxIntentos) * 100);
-          const color = pct >= 70 ? 'var(--danger)' : pct >= 40 ? 'var(--warning)' : 'var(--muted)';
-          return '<div style="background:var(--surface2);border-radius:8px;padding:10px 12px;">'
-            + '<div style="display:flex;justify-content:space-between;margin-bottom:5px;">'
-            + '<span style="font-size:12px;font-family:monospace;color:var(--text);">' + s.ip + '</span>'
-            + '<span style="font-size:11px;color:' + color + ';">' + s.intentos + '/' + data.configuracion.maxIntentos + ' intentos</span>'
-            + '</div>'
-            + '<div style="background:var(--border);border-radius:4px;height:4px;overflow:hidden;">'
-            + '<div style="height:100%;background:' + color + ';width:' + pct + '%;border-radius:4px;transition:width 0.3s;"></div>'
-            + '</div>'
-            + '</div>';
-        }).join('');
-      }
-    }
-
-  } catch(e) {
-    if (loadingEl) loadingEl.style.display = 'none';
-    showToast('Error cargando estado de seguridad: ' + e.message, 'error');
-  }
-}
-
-async function desbloquearIP(ip) {
-  if (!confirm('¿Desbloquear la IP ' + ip + '?')) return;
-  try {
-    await DEL('/api/auth/ratelimit-status/' + encodeURIComponent(ip));
-    showToast('IP desbloqueada: ' + ip, 'success');
-    cargarSeguridadStatus();
-  } catch(e) {
-    showToast('Error: ' + e.message, 'error');
-  }
-}
-
-</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 </head>
 <body>
 
@@ -785,7 +695,7 @@ async function desbloquearIP(ip) {
     <div class="sidebar-footer">
 
       <div style="margin-top:10px;text-align:center;font-size:10px;color:var(--muted);line-height:1.6;opacity:0.7;">
-        <div>v2.3.0 — HORIX</div>
+        <div>v2.2.0 — HORIX</div>
         <div>© 2025 Edgar Velasquez</div>
         <div>Todos los derechos reservados</div>
       </div>
@@ -1261,9 +1171,6 @@ async function desbloquearIP(ip) {
       </div>
     </div>
 
-  </main>
-</div>
-
     <!-- SEGURIDAD -->
     <div class="page" id="page-seguridad">
       <div class="page-header">
@@ -1281,7 +1188,6 @@ async function desbloquearIP(ip) {
         </div>
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
-        <!-- Configuración -->
         <div class="table-wrap" style="padding:24px 28px;">
           <div style="font-family:var(--font-head);font-weight:700;font-size:15px;margin-bottom:16px;">⚙️ Configuración del Rate Limiter</div>
           <div style="display:flex;flex-direction:column;gap:10px;font-size:13px;">
@@ -1299,10 +1205,9 @@ async function desbloquearIP(ip) {
             </div>
           </div>
           <div style="margin-top:16px;padding:12px 14px;background:rgba(79,142,247,0.06);border:1px solid rgba(79,142,247,0.15);border-radius:9px;font-size:12px;color:var(--muted);line-height:1.6;">
-            💡 El bloqueo es automático y se aplica por IP. Se libera automáticamente al vencer el tiempo de bloqueo, o manualmente desde esta pantalla.
+            💡 El bloqueo es automático y se aplica por IP. Se libera automáticamente al vencer el tiempo, o manualmente desde aquí.
           </div>
         </div>
-        <!-- IPs bloqueadas -->
         <div class="table-wrap" style="padding:24px 28px;">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
             <div style="font-family:var(--font-head);font-weight:700;font-size:15px;">🔒 IPs Bloqueadas</div>
@@ -1319,6 +1224,8 @@ async function desbloquearIP(ip) {
         </div>
       </div>
     </div>
+  </main>
+</div>
 
 <!-- MODAL CENTRO -->
 <div class="modal-overlay" id="modal-centro">
@@ -3409,96 +3316,6 @@ async function ejecutarGeneracion(lista) {
   else showToast(`${creados} creados, ${errores} errores.`, 'error');
   setLoading('btn-generar-nom', false);
 }
-
-// ═══════════════════════════════════════════════════
-// SEGURIDAD — Rate Limiter Status
-// ═══════════════════════════════════════════════════
-async function cargarSeguridadStatus() {
-  const loadingEl   = document.getElementById('sec-bloqueadas-loading');
-  const noneEl      = document.getElementById('sec-bloqueadas-none');
-  const bodyEl      = document.getElementById('sec-bloqueadas-body');
-  const seguNoneEl  = document.getElementById('sec-seguimiento-none');
-  const seguBodyEl  = document.getElementById('sec-seguimiento-body');
-
-  if (loadingEl) loadingEl.style.display = 'block';
-  if (noneEl)    noneEl.style.display    = 'none';
-  if (bodyEl)    bodyEl.style.display    = 'none';
-
-  try {
-    const data = await GET('/api/auth/ratelimit-status');
-    if (!data) return;
-
-    // Stats
-    document.getElementById('sec-bloqueadas').textContent  = data.totalBloqueadas;
-    document.getElementById('sec-seguimiento').textContent = data.totalIpsEnSeguimiento;
-
-    // Config
-    document.getElementById('sec-cfg-intentos').textContent = data.configuracion.maxIntentos + ' intentos';
-    document.getElementById('sec-cfg-ventana').textContent  = data.configuracion.ventanaMinutos + ' minutos';
-    document.getElementById('sec-cfg-bloqueo').textContent  = data.configuracion.bloqueoMinutos + ' minutos';
-
-    // IPs bloqueadas
-    if (loadingEl) loadingEl.style.display = 'none';
-    if (!data.bloqueadas.length) {
-      if (noneEl) noneEl.style.display = 'block';
-    } else {
-      if (bodyEl) {
-        bodyEl.style.display = 'flex';
-        bodyEl.innerHTML = data.bloqueadas.map(function(b) {
-          return '<div style="background:rgba(247,97,79,0.08);border:1px solid rgba(247,97,79,0.2);border-radius:10px;padding:12px 14px;display:flex;align-items:center;justify-content:space-between;gap:12px;">'
-            + '<div>'
-            + '<div style="font-size:13px;font-weight:600;color:var(--text);font-family:monospace;">🔒 ' + b.ip + '</div>'
-            + '<div style="font-size:11px;color:var(--muted);margin-top:3px;">' + b.intentos + ' intentos · Libera: ' + b.bloqueadaHasta + ' (' + b.minutosRestantes + ' min)</div>'
-            + '</div>'
-            + '<button class="btn btn-sm sec-btn-desbloquear" data-ip="' + b.ip + '" style="background:rgba(79,190,150,0.1);color:var(--success);border:1px solid rgba(79,190,150,0.3);white-space:nowrap;">🔓 Desbloquear</button>'
-            + '</div>';
-        }).join('');
-        bodyEl.querySelectorAll('.sec-btn-desbloquear').forEach(function(btn) {
-          btn.addEventListener('click', function() { desbloquearIP(this.dataset.ip); });
-        });
-      }
-    }
-
-    // IPs en seguimiento
-    if (!data.enSeguimiento.length) {
-      if (seguNoneEl) seguNoneEl.style.display = 'block';
-      if (seguBodyEl) seguBodyEl.innerHTML = '';
-    } else {
-      if (seguNoneEl) seguNoneEl.style.display = 'none';
-      if (seguBodyEl) {
-        seguBodyEl.innerHTML = data.enSeguimiento.map(function(s) {
-          const pct = Math.round((s.intentos / data.configuracion.maxIntentos) * 100);
-          const color = pct >= 70 ? 'var(--danger)' : pct >= 40 ? 'var(--warning)' : 'var(--muted)';
-          return '<div style="background:var(--surface2);border-radius:8px;padding:10px 12px;">'
-            + '<div style="display:flex;justify-content:space-between;margin-bottom:5px;">'
-            + '<span style="font-size:12px;font-family:monospace;color:var(--text);">' + s.ip + '</span>'
-            + '<span style="font-size:11px;color:' + color + ';">' + s.intentos + '/' + data.configuracion.maxIntentos + ' intentos</span>'
-            + '</div>'
-            + '<div style="background:var(--border);border-radius:4px;height:4px;overflow:hidden;">'
-            + '<div style="height:100%;background:' + color + ';width:' + pct + '%;border-radius:4px;transition:width 0.3s;"></div>'
-            + '</div>'
-            + '</div>';
-        }).join('');
-      }
-    }
-
-  } catch(e) {
-    if (loadingEl) loadingEl.style.display = 'none';
-    showToast('Error cargando estado de seguridad: ' + e.message, 'error');
-  }
-}
-
-async function desbloquearIP(ip) {
-  if (!confirm('¿Desbloquear la IP ' + ip + '?')) return;
-  try {
-    await DEL('/api/auth/ratelimit-status/' + encodeURIComponent(ip));
-    showToast('IP desbloqueada: ' + ip, 'success');
-    cargarSeguridadStatus();
-  } catch(e) {
-    showToast('Error: ' + e.message, 'error');
-  }
-}
-
 </script>
 </body>
 </html>
