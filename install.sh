@@ -303,13 +303,21 @@ if [[ "$CONF_F2B" =~ ^[Ss]$ ]]; then
     sudo apt-get install -y fail2ban
   fi
   ok "Fail2ban: $(fail2ban-client --version 2>&1 | head -1)"
+
+  NGINX_LOG="/var/log/nginx/access.log"
+  F2B_PORT=${HTTPS_PORT:-$PUERTO}
+
+  if [[ ! "$CONF_HTTPS" =~ ^[Ss]$ ]]; then
+    warn "HTTPS no configurado — Fail2ban solo funcionará si Nginx está instalado y activo."
+    warn "Si Nginx no está activo, los intentos fallidos no serán detectados."
+  fi
+
   sudo tee /etc/fail2ban/filter.d/horix-login.conf > /dev/null << 'F2BFILTER'
 [Definition]
 failregex = ^<HOST> .* "POST /api/auth/login HTTP.*" 401
 ignoreregex =
 F2BFILTER
-  NGINX_LOG="/var/log/nginx/access.log"
-  F2B_PORT=${HTTPS_PORT:-$PUERTO}
+
   sudo tee /etc/fail2ban/jail.d/horix.conf > /dev/null << F2BJAIL
 [horix-login]
 enabled   = true
@@ -322,9 +330,10 @@ findtime  = 300
 bantime   = 600
 ignoreip  = 127.0.0.1/8
 F2BJAIL
+
   sudo systemctl enable fail2ban
   sudo systemctl restart fail2ban
-  ok "Fail2ban activo"
+  ok "Fail2ban activo en puerto $F2B_PORT"
   info "Comandos útiles de Fail2ban:"
   echo -e "    sudo fail2ban-client status horix-login"
   echo -e "    sudo fail2ban-client set horix-login unbanip <IP>"
