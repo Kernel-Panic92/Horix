@@ -358,6 +358,8 @@ echo "  ║    tras el primer login              ║"
 echo "  ╚══════════════════════════════════════╝"
 echo ""
 echo -e "${AMARILLO}  ⚠ Configura el SMTP en Configuración → Config. Correo.${RESET}"
+RAMA=$(git branch --show-current 2>/dev/null || echo "desconocida")
+echo -e "  🌿 Rama:     $RAMA"
 [[ "$CERT_TIPO" == "1" && -n "$HTTPS_URL" ]] && echo -e "${AMARILLO}  ⚠ Instala el certificado ~/horix_cert.crt en los equipos clientes.${RESET}"
 [[ "$CERT_TIPO" == "1" && -n "$HTTPS_URL" ]] && echo -e "${AMARILLO}  ⚠ Agrega al DNS interno: $SERVER_IP  $HTTPS_DOMAIN${RESET}"
 echo ""
