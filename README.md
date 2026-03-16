@@ -17,7 +17,7 @@ Sistema web para la gestión y control de horas extra del personal, desarrollado
 ```bash
 git clone -b dev git@github.com:Kernel-Panic92/Horix.git horix
 cd horix
-chmod +x horix.sh
+chmod +x install.sh
 ./install.sh
 ```
 
