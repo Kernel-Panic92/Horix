@@ -463,7 +463,7 @@ app.put('/api/configuracion', soloAdmin, (req, res) => {
 app.post('/api/configuracion/test', soloAdmin, async (req, res) => {
   try {
     await enviarCorreo(req.usuario.email, 'Prueba SMTP — HorasExtra',
-      `Hola ${req.usuario.nombre},\n\nEsta es una prueba de conexión SMTP desde HorasExtra.\n\nSi recibes este mensaje, la configuración es correcta ✓\n\nSaludos,\nEquipo RRHH`);
+      `Hola ${req.usuario.nombre},\n\nEsta es una prueba de conexión SMTP desde HorasExtra.\n\nSi recibes este mensaje, la configuración es correcta ✓\n\nSaludos,\nEquipo HORIX`);
     res.json({ ok: true });
   } catch (e) {
     res.status(500).json({ error: e.message });
