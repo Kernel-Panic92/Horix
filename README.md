@@ -1,4 +1,4 @@
-# Horix v2.3.0 — Sistema de Control de Horas Extra
+# Horix v2.3.1 — Sistema de Control de Horas Extra
 
 Sistema web para la gestión y control de horas extra del personal, desarrollado para el área de Recursos Humanos.
 
