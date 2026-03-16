@@ -1698,7 +1698,7 @@ function populateRegistroSelects() {
 
   // Filtrar períodos del mes actual según quincena
   const relevantes = [...nominas]
-    .sort((a, b) => a.inicio.localeCompare(a.inicio))
+    .sort((a, b) => b.inicio.localeCompare(a.inicio))
     .filter(n => {
       const inicio = new Date(n.inicio + 'T00:00:00');
       if (n.tipo === 'mensual') {
@@ -1711,7 +1711,7 @@ function populateRegistroSelects() {
       return false;
     });
 
-  const todos = [...nominas].sort((a, b) => b.inicio.localeCompare(a.inicio));
+  const todos = [...nominas].sort((a, b) => a.inicio.localeCompare(b.inicio));
 
   // Renderizar con opción de ver todos
   sn.innerHTML = '<option value="">Seleccionar período...</option>';
