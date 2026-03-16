@@ -1523,10 +1523,58 @@ function onTipoChange() {
 }
 
 function populateRegistroSelects() {
-  const sn=document.getElementById('reg-nomina');
-  sn.innerHTML='<option value="">Seleccionar período...</option>';
-  [...nominas].sort((a,b)=>a.inicio.localeCompare(b.inicio)).forEach(n => sn.innerHTML+=`<option value="${n.id}">${n.nombre}</option>`);
+  const sn = document.getElementById('reg-nomina');
+  const now = new Date();
+  const anio = now.getFullYear();
+  const mes  = now.getMonth(); // 0-11
+  const dia  = now.getDate();
+  const quincena = dia <= 15 ? 1 : 2;
+
+  // Filtrar períodos del mes actual según quincena
+  const relevantes = [...nominas]
+    .sort((a, b) => b.inicio.localeCompare(a.inicio))
+    .filter(n => {
+      const inicio = new Date(n.inicio + 'T00:00:00');
+      if (n.tipo === 'mensual') {
+        return inicio.getFullYear() === anio && inicio.getMonth() === mes;
+      }
+      if (n.tipo === 'quincenal') {
+        if (inicio.getFullYear() !== anio || inicio.getMonth() !== mes) return false;
+        return quincena === 1 ? inicio.getDate() === 1 : inicio.getDate() > 1;
+      }
+      return false;
+    });
+
+  const todos = [...nominas].sort((a, b) => b.inicio.localeCompare(a.inicio));
+
+  // Renderizar con opción de ver todos
+  sn.innerHTML = '<option value="">Seleccionar período...</option>';
+
+  if (relevantes.length) {
+    const grp = document.createElement('optgroup');
+    grp.label = '📅 Período actual';
+    relevantes.forEach(n => {
+      const opt = document.createElement('option');
+      opt.value = n.id;
+      opt.textContent = n.nombre;
+      opt.selected = relevantes.length === 1; // autoseleccionar si hay solo uno
+      grp.appendChild(opt);
+    });
+    sn.appendChild(grp);
+  }
+
+  // Separador — todos los períodos
+  const grp2 = document.createElement('optgroup');
+  grp2.label = '── Todos los períodos ──';
+  todos.forEach(n => {
+    const opt = document.createElement('option');
+    opt.value = n.id;
+    opt.textContent = n.nombre;
+    grp2.appendChild(opt);
+  });
+  sn.appendChild(grp2);
 }
+
 function populateHistorialFilters() {
   const fn=document.getElementById('fil-nomina'), fe=document.getElementById('fil-empleado');
   const cn=fn.value, ce=fe.value;
