@@ -76,8 +76,12 @@ echo ""
 
 # ── 5. Actualizar server.js con credenciales
 info "Configurando server.js..."
-sed -i "s|'admin@empresa.com'|'$ADMIN_EMAIL'|g" server.js
-sed -i "s|await hashPassword('Admin2025!')|await hashPassword('$ADMIN_PASS')|g" server.js
+cat > .env << ENVEOF
+ADMIN_EMAIL=$ADMIN_EMAIL
+ADMIN_PASS=$ADMIN_PASS
+HE_SECRET=$(openssl rand -hex 32)
+ENVEOF
+echo "  ✓ Credenciales guardadas en .env"
 sed -i "s|'Horix RRHH <noreply@tuempresa.com>'|'Horix RRHH <$ADMIN_EMAIL>'|g" server.js
 sed -i "s|const SEDES = \['Principal'\];|const SEDES = ['$SEDE_PRINCIPAL'];|g" server.js
 ok "server.js configurado"
@@ -358,7 +362,7 @@ echo -e "  🏢 Empresa:  $EMPRESA"
 echo -e "  🌐 HTTP:     http://$SERVER_IP:$PUERTO"
 [[ -n "$HTTPS_URL" ]] && echo -e "  🔒 HTTPS:    $HTTPS_URL"
 echo -e "  👤 Admin:    $ADMIN_EMAIL"
-echo -e "  👤 Admin:    $ADMIN_PASS"
+echo -e "  👤 Password:  $ADMIN_PASS"
 echo -e "  📁 Backups:  $BACKUP_LOCAL"
 echo ""
 echo -e "${AMARILLO}  ⚠ Cambia la contraseña del admin tras el primer login.${RESET}"
