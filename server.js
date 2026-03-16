@@ -183,6 +183,10 @@ function getConfig() {
   if (cfg.smtp_password) cfg.smtp_password = decryptSmtp(cfg.smtp_password);
   return cfg;
 }
+function getAdminEmail() {
+  const admin = db.prepare("SELECT email FROM usuarios WHERE rol='admin' AND activo=1 ORDER BY creado ASC LIMIT 1").get();
+  return admin ? admin.email : null;
+}
 function getBaseUrl(req) {
   return `${req.protocol}://${req.get('host')}`;
 }
@@ -222,8 +226,10 @@ async function enviarCorreo(para, asunto, cuerpo) {
   if (totalUsuarios.c === 0) {
     const primerCentro = db.prepare('SELECT nombre FROM centros LIMIT 1').get()?.nombre || 'Principal';
     db.prepare('INSERT INTO usuarios (id,nombre,email,password,rol,sede,activo,creado) VALUES (?,?,?,?,?,?,?,?)').run(
-      uid(), 'Administrador', process.env.ADMIN_EMAIL || 'admin@empresa.com',
-await hashPassword(process.env.ADMIN_PASS || 'Admin2025!'), 'admin', primerCentro, 1, new Date().toISOString()
+      uid(), 'Administrador',
+process.env.ADMIN_EMAIL || 'admin@tuempresa.com',
+await hashPassword(process.env.ADMIN_PASS || 'Admin*2026!'),
+'admin', primerCentro, 1, new Date().toISOString()
     );
     console.log('👤 Usuario admin creado: admin@empresa.com / Admin2025!');
   }
@@ -896,7 +902,7 @@ app.post('/api/backup/alerta', soloAdmin, async (req, res) => {
   const fecha = new Date().toLocaleString('es-CO', { timeZone: 'America/Bogota' });
   try {
     await enviarCorreo(
-      adminEmail,
+      getAdminEmail() || req.usuario.email,
       `⚠ Error en Backup Automático — HorasExtra ${fecha}`,
       `Hola,
 

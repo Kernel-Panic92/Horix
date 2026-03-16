@@ -57,18 +57,6 @@ PUERTO=${PUERTO:-3000}
 read -p "  Nombre de la empresa: " EMPRESA
 EMPRESA=${EMPRESA:-"Mi Empresa"}
 
-read -p "  Email del administrador: " ADMIN_EMAIL
-while [[ -z "$ADMIN_EMAIL" ]]; do
-  warn "El email es requerido."
-  read -p "  Email del administrador: " ADMIN_EMAIL
-done
-
-read -s -p "  Contraseña del administrador: " ADMIN_PASS; echo ""
-while [[ ${#ADMIN_PASS} -lt 6 ]]; do
-  warn "Mínimo 6 caracteres."
-  read -s -p "  Contraseña del administrador: " ADMIN_PASS; echo ""
-done
-
 read -p "  Centro de operación inicial [Principal]: " SEDE_PRINCIPAL
 SEDE_PRINCIPAL=${SEDE_PRINCIPAL:-"Principal"}
 
@@ -77,17 +65,15 @@ echo ""
 # ── 5. Actualizar server.js con credenciales
 info "Configurando server.js..."
 cat > .env << ENVEOF
-ADMIN_EMAIL=$ADMIN_EMAIL
-ADMIN_PASS=$ADMIN_PASS
 HE_SECRET=$(openssl rand -hex 32)
 ENVEOF
+echo "  ✓ Archivo .env generado"
 echo "  ✓ Credenciales guardadas en .env"
-sed -i "s|'Horix RRHH <noreply@tuempresa.com>'|'Horix RRHH <$ADMIN_EMAIL>'|g" server.js
 sed -i "s|const SEDES = \['Principal'\];|const SEDES = ['$SEDE_PRINCIPAL'];|g" server.js
 ok "server.js configurado"
 
 # ── 6. .backup_pass
-echo "$ADMIN_PASS" > .backup_pass
+echo "configurar_pass_nas" > .backup_pass
 chmod 600 .backup_pass
 ok ".backup_pass creado"
 
@@ -118,7 +104,7 @@ if [[ -f "backup_horasextra_template.sh" ]]; then
   info "Generando script de backup..."
   cp backup_horasextra_template.sh backup_horasextra.sh
   sed -i "s|__PORT__|$PUERTO|g"               backup_horasextra.sh
-  sed -i "s|__ADMIN_EMAIL__|$ADMIN_EMAIL|g"   backup_horasextra.sh
+  sed -i "s|__ADMIN_EMAIL__|admin@tuempresa.com|g"   backup_horasextra.sh
   sed -i "s|__INSTALL_DIR__|$INSTALL_DIR|g"   backup_horasextra.sh
   sed -i "s|__BACKUP_LOCAL__|$BACKUP_LOCAL|g" backup_horasextra.sh
   sed -i "s|__USAR_NAS__|$USAR_NAS|g"         backup_horasextra.sh
@@ -209,7 +195,8 @@ CERTEOF
     sudo systemctl restart nginx
 
     info "Obteniendo certificado Let's Encrypt para $HTTPS_DOMAIN..."
-    sudo certbot certonly --nginx -d "$HTTPS_DOMAIN" --non-interactive --agree-tos -m "$ADMIN_EMAIL" || \
+    read -p "  Email para notificaciones de Let's Encrypt: " CERTBOT_EMAIL
+    sudo certbot certonly --nginx -d "$HTTPS_DOMAIN" --non-interactive --agree-tos -m "$CERTBOT_EMAIL" || \
       err "Certbot falló. Verifica que el dominio resuelva a esta IP y los puertos 80/443 estén abiertos."
 
     sudo rm -f /etc/nginx/sites-enabled/horix-certbot
@@ -355,17 +342,21 @@ fi
 SERVER_IP=$(hostname -I | awk '{print $1}')
 echo ""
 echo -e "${VERDE}══════════════════════════════════════════════${RESET}"
-echo -e "${VERDE}  ✅ Horix v2.3.0 instalado correctamente${RESET}"
+echo -e "${VERDE}  ✅ Horix v2.3.1 instalado correctamente${RESET}"
 echo -e "${VERDE}══════════════════════════════════════════════${RESET}"
 echo ""
 echo -e "  🏢 Empresa:  $EMPRESA"
 echo -e "  🌐 HTTP:     http://$SERVER_IP:$PUERTO"
 [[ -n "$HTTPS_URL" ]] && echo -e "  🔒 HTTPS:    $HTTPS_URL"
-echo -e "  👤 Admin:    $ADMIN_EMAIL"
-echo -e "  👤 Password:  $ADMIN_PASS"
-echo -e "  📁 Backups:  $BACKUP_LOCAL"
 echo ""
-echo -e "${AMARILLO}  ⚠ Cambia la contraseña del admin tras el primer login.${RESET}"
+echo "  ╔══════════════════════════════════════╗"
+echo "  ║     CREDENCIALES POR DEFECTO         ║"
+echo "  ║  Usuario: admin@tuempresa.com        ║"
+echo "  ║  Password: Admin*2026!               ║"
+echo "  ║  ⚠Cambia estas credenciales         ║"
+echo "  ║    tras el primer login              ║"
+echo "  ╚══════════════════════════════════════╝"
+echo ""
 echo -e "${AMARILLO}  ⚠ Configura el SMTP en Configuración → Config. Correo.${RESET}"
 [[ "$CERT_TIPO" == "1" && -n "$HTTPS_URL" ]] && echo -e "${AMARILLO}  ⚠ Instala el certificado ~/horix_cert.crt en los equipos clientes.${RESET}"
 [[ "$CERT_TIPO" == "1" && -n "$HTTPS_URL" ]] && echo -e "${AMARILLO}  ⚠ Agrega al DNS interno: $SERVER_IP  $HTTPS_DOMAIN${RESET}"
