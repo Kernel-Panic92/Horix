@@ -111,13 +111,13 @@ try { db.exec(`ALTER TABLE usuarios   ADD COLUMN cambio_password INTEGER NOT NUL
 // Configuración SMTP por defecto
 const smtpDefaults = {
   smtp_host:      '',
-  smtp_puerto:    '587',
-  smtp_tls:       'true',
+  smtp_puerto:    '',
+  smtp_tls:       '',
   smtp_usuario:   '',
   smtp_password:  '',
-  smtp_remitente: 'Horix RRHH <coordinadorsistemas@vitamar.com.co>',
+  smtp_remitente: 'Horix <mail@tuempresa.com>',
   reset_asunto:   'Recuperación de contraseña — Horix',
-  reset_cuerpo:   'Hola {nombre},\n\nRecibimos una solicitud para restablecer tu contraseña.\n\nHaz clic en el siguiente enlace (válido por 30 minutos):\n{enlace}\n\nSi no solicitaste esto, ignora este correo.\n\nSaludos,\nEquipo RRHH'
+  reset_cuerpo:   'Hola {nombre},\n\nRecibimos una solicitud para restablecer tu contraseña.\n\nHaz clic en el siguiente enlace (válido por 30 minutos):\n{enlace}\n\nSi no solicitaste esto, ignora este correo.\n\nSaludos,\nEquipo Horix'
 };
 for (const [clave, valor] of Object.entries(smtpDefaults)) {
   const existe = db.prepare('SELECT clave FROM configuracion WHERE clave = ?').get(clave);
@@ -221,8 +221,8 @@ async function enviarCorreo(para, asunto, cuerpo) {
   if (totalUsuarios.c === 0) {
     const primerCentro = db.prepare('SELECT nombre FROM centros LIMIT 1').get()?.nombre || 'Principal';
     db.prepare('INSERT INTO usuarios (id,nombre,email,password,rol,sede,activo,creado) VALUES (?,?,?,?,?,?,?,?)').run(
-      uid(), 'Administrador', 'coordinadorsistemas@vitamar.com.co',
-      await hashPassword('Ad*V1t4m4r*2023*'), 'admin', primerCentro, 1, new Date().toISOString()
+      uid(), 'Administrador', 'admin@tuempresa.com',
+      await hashPassword('Admin2025!'), 'admin', primerCentro, 1, new Date().toISOString()
     );
     console.log('👤 Usuario admin creado: admin@empresa.com / Admin2025!');
   }
