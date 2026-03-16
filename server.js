@@ -462,8 +462,8 @@ app.put('/api/configuracion', soloAdmin, (req, res) => {
 });
 app.post('/api/configuracion/test', soloAdmin, async (req, res) => {
   try {
-    await enviarCorreo(req.usuario.email, 'Prueba SMTP — HorasExtra',
-      `Hola ${req.usuario.nombre},\n\nEsta es una prueba de conexión SMTP desde HorasExtra.\n\nSi recibes este mensaje, la configuración es correcta ✓\n\nSaludos,\nEquipo HORIX`);
+    await enviarCorreo(req.usuario.email, 'Prueba SMTP — Horix',
+      `Hola ${req.usuario.nombre},\n\nEsta es una prueba de conexión SMTP desde Horix.\n\nSi recibes este mensaje, la configuración es correcta ✓\n\nSaludos,\nEquipo HORIX`);
     res.json({ ok: true });
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -636,6 +636,68 @@ app.delete('/api/empleados/:id', soloAdmin, (req, res) => {
   db.prepare('DELETE FROM registros WHERE empleadoId=?').run(req.params.id);
   db.prepare('DELETE FROM empleados WHERE id=?').run(req.params.id);
   res.json({ ok: true });
+});
+
+// POST /api/empleados/importar — importa desde CSV, skip duplicados por cédula
+app.post('/api/empleados/importar', soloAdmin, upload.single('archivo'), (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'No se recibió ningún archivo' });
+  try {
+    const texto = req.file.buffer.toString('utf8').replace(/^\uFEFF/, '');
+    const lineas = texto.split('\n').map(l => l.trim()).filter(l => l);
+    if (lineas.length < 2) return res.status(400).json({ error: 'El archivo está vacío o no tiene datos' });
+
+    const parseCsv = line => {
+      const cols = []; let cur = '', inQ = false;
+      for (const ch of line) {
+        if (ch === '"') { inQ = !inQ; }
+        else if (ch === ',' && !inQ) { cols.push(cur); cur = ''; }
+        else cur += ch;
+      }
+      cols.push(cur);
+      return cols.map(c => c.replace(/^"|"$/g, '').replace(/""/g, '"').trim());
+    };
+
+    const headers = parseCsv(lineas[0]).map(h => h.toLowerCase());
+    const idx = h => headers.indexOf(h);
+
+    const required = ['nombre', 'cedula', 'cargo', 'departamento', 'sede'];
+    const missing = required.filter(r => idx(r) === -1);
+    if (missing.length) return res.status(400).json({ error: `Columnas faltantes: ${missing.join(', ')}` });
+
+    let agregados = 0, omitidos = 0, errores = 0;
+    const detalleErrores = [];
+
+    for (let i = 1; i < lineas.length; i++) {
+      const cols = parseCsv(lineas[i]);
+      if (cols.length < required.length) { errores++; continue; }
+      const cedula = cols[idx('cedula')]?.trim();
+      if (!cedula) { errores++; continue; }
+      const existe = db.prepare('SELECT id FROM empleados WHERE cedula = ?').get(cedula);
+      if (existe) { omitidos++; continue; }
+      const nombre       = cols[idx('nombre')]?.trim();
+      const cargo        = cols[idx('cargo')]?.trim();
+      const departamento = cols[idx('departamento')]?.trim();
+      const sede         = cols[idx('sede')]?.trim() || 'Principal';
+      const email        = idx('email') !== -1 ? cols[idx('email')]?.trim() : '';
+      const telefono     = idx('telefono') !== -1 ? cols[idx('telefono')]?.trim() : '';
+      if (!nombre || !cargo || !departamento) {
+        detalleErrores.push(`Fila ${i + 1}: datos incompletos`);
+        errores++; continue;
+      }
+      const centroValido = db.prepare('SELECT id FROM centros WHERE nombre = ? AND activo = 1').get(sede);
+      if (!centroValido) {
+        detalleErrores.push(`Fila ${i + 1}: sede "${sede}" no existe`);
+        errores++; continue;
+      }
+      db.prepare('INSERT INTO empleados (id,nombre,cedula,cargo,departamento,sede,email,telefono) VALUES (?,?,?,?,?,?,?,?)')
+        .run(uid(), nombre, cedula, cargo, departamento, sede, email || '', telefono || '');
+      agregados++;
+    }
+    res.json({ ok: true, agregados, omitidos, errores, detalleErrores });
+  } catch (e) {
+    console.error('Error importar empleados:', e);
+    res.status(500).json({ error: 'Error procesando el archivo: ' + e.message });
+  }
 });
 
 // ─────────────────────────────────────────────

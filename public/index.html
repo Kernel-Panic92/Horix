@@ -936,7 +936,10 @@ async function desbloquearIP(ip) {
     <div class="page" id="page-empleados">
       <div class="page-header" style="display:flex;justify-content:space-between;align-items:flex-start;">
         <div><div class="page-title">Empleados</div><div class="page-sub">Gestión del directorio de empleados</div></div>
-        <button class="btn btn-primary" id="btn-nuevo-emp" onclick="abrirModalEmpleado()">+ Nuevo Empleado</button>
+        <div style="display:flex;gap:8px;">
+  <button class="btn btn-secondary" id="btn-importar-emp" onclick="abrirModalImportarEmp()" style="display:none;">📥 Importar CSV</button>
+  <button class="btn btn-primary" id="btn-nuevo-emp" onclick="abrirModalEmpleado()">+ Nuevo Empleado</button>
+</div>
       </div>
       <div style="margin-bottom:18px;display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
         <div style="position:relative;flex:1;min-width:200px;max-width:380px;">
@@ -1315,6 +1318,39 @@ async function desbloquearIP(ip) {
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="cerrarModal('modal-centro')">Cancelar</button>
       <button class="btn btn-primary" onclick="guardarCentro()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL IMPORTAR EMPLEADOS -->
+<div class="modal-overlay" id="modal-importar-emp">
+  <div class="modal" style="width:480px;">
+    <div class="modal-title">📥 Importar Empleados desde CSV</div>
+    <p style="color:var(--muted);font-size:13px;margin-bottom:16px;line-height:1.6;">
+      Sube un archivo <strong style="color:var(--text)">.csv</strong> con los empleados a importar.
+      Se omitirán automáticamente los que ya existan por cédula.
+    </p>
+    <div style="background:var(--surface2);border-radius:9px;padding:12px 14px;margin-bottom:16px;font-size:12px;color:var(--muted);">
+      <div style="font-weight:600;color:var(--text);margin-bottom:6px;">Columnas requeridas:</div>
+      <code style="color:var(--accent)">nombre, cedula, cargo, departamento, sede</code>
+      <div style="margin-top:4px;">Opcionales: <code style="color:var(--accent)">email, telefono</code></div>
+      <div style="margin-top:8px;">💡 Puedes usar el CSV de empleados generado por el Backup como plantilla.</div>
+    </div>
+    <div id="imp-drop" onclick="document.getElementById('imp-file').click()"
+      style="border:2px dashed var(--border);border-radius:10px;padding:24px;text-align:center;cursor:pointer;margin-bottom:12px;transition:border-color 0.2s;"
+      onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'"
+      ondragover="event.preventDefault();this.style.borderColor='var(--accent)'"
+      ondragleave="this.style.borderColor='var(--border)'"
+      ondrop="handleImpDrop(event)">
+      <div style="font-size:28px;margin-bottom:6px;">📂</div>
+      <div style="font-size:13px;color:var(--muted);">Clic o arrastra tu archivo <strong style="color:var(--text)">.csv</strong></div>
+      <div id="imp-filename" style="margin-top:6px;font-size:12px;color:var(--accent);display:none;"></div>
+    </div>
+    <input type="file" id="imp-file" accept=".csv" style="display:none"/>
+    <div id="imp-resultado" style="display:none;margin-bottom:12px;padding:12px 14px;border-radius:9px;font-size:13px;"></div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="cerrarModal('modal-importar-emp')">Cancelar</button>
+      <button class="btn btn-primary" id="btn-confirmar-importar" onclick="confirmarImportarEmp()" disabled style="opacity:0.5;">📥 Importar</button>
     </div>
   </div>
 </div>
@@ -2227,6 +2263,8 @@ function buscarEmpleados() {
   const grid=document.getElementById('emp-grid');
   const countEl = document.getElementById('emp-count');
   document.getElementById('btn-nuevo-emp').style.display = puedoEditar() ? '' : 'none';
+  const btnImp = document.getElementById('btn-importar-emp');
+if (btnImp) btnImp.style.display = soyAdmin() ? '' : 'none';
   document.getElementById('emp-perm-banner').classList.toggle('show', !puedoEditar());
 
   if (countEl) countEl.textContent = q ? `${lista.length} de ${empleados.length} empleados` : `${empleados.length} empleados`;
@@ -3527,6 +3565,96 @@ async function desbloquearIP(ip) {
     showToast('IP desbloqueada: ' + ip, 'success');
     cargarSeguridadStatus();
   } catch(e) { showToast('Error: ' + e.message, 'error'); }
+}
+
+// ═══════════════════════════════════════════════════
+// IMPORTAR EMPLEADOS
+// ═══════════════════════════════════════════════════
+let _impFile = null;
+
+function abrirModalImportarEmp() {
+  _impFile = null;
+  document.getElementById('imp-file').value = '';
+  document.getElementById('imp-filename').style.display = 'none';
+  document.getElementById('imp-resultado').style.display = 'none';
+  const btn = document.getElementById('btn-confirmar-importar');
+  btn.disabled = true; btn.style.opacity = '0.5';
+  document.getElementById('modal-importar-emp').classList.add('open');
+}
+
+function handleImpDrop(e) {
+  e.preventDefault();
+  document.getElementById('imp-drop').style.borderColor = 'var(--border)';
+  const file = e.dataTransfer.files[0];
+  if (file) seleccionarImpFile(file);
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  const inp = document.getElementById('imp-file');
+  if (inp) inp.addEventListener('change', function() {
+    if (this.files[0]) seleccionarImpFile(this.files[0]);
+  });
+});
+
+function seleccionarImpFile(file) {
+  if (!file.name.endsWith('.csv')) { showToast('Solo se aceptan archivos .csv', 'error'); return; }
+  _impFile = file;
+  const fn = document.getElementById('imp-filename');
+  fn.textContent = '📄 ' + file.name;
+  fn.style.display = 'block';
+  document.getElementById('imp-resultado').style.display = 'none';
+  const btn = document.getElementById('btn-confirmar-importar');
+  btn.disabled = false; btn.style.opacity = '1';
+}
+
+async function confirmarImportarEmp() {
+  if (!_impFile) return;
+  setLoading('btn-confirmar-importar', true);
+  const resEl = document.getElementById('imp-resultado');
+  resEl.style.display = 'none';
+  try {
+    const form = new FormData();
+    form.append('archivo', _impFile);
+    const res = await fetch(API + '/api/empleados/importar', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + sesion.token },
+      body: form
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      resEl.style.background = 'rgba(247,97,79,0.08)';
+      resEl.style.border     = '1px solid rgba(247,97,79,0.3)';
+      resEl.style.color      = 'var(--danger)';
+      resEl.textContent      = '✗ ' + (data.error || 'Error al importar');
+      resEl.style.display    = 'block';
+      return;
+    }
+    resEl.style.background = 'rgba(79,190,150,0.08)';
+    resEl.style.border     = '1px solid rgba(79,190,150,0.3)';
+    resEl.style.color      = 'var(--success)';
+    resEl.innerHTML = `✓ Importación completada:<br>
+      &nbsp;&nbsp;• <strong>${data.agregados}</strong> empleados agregados<br>
+      &nbsp;&nbsp;• <strong>${data.omitidos}</strong> omitidos (ya existían)<br>
+      ${data.errores > 0 ? `&nbsp;&nbsp;• <strong style="color:var(--warning)">${data.errores}</strong> filas con errores` : ''}
+      ${data.detalleErrores?.length ? '<br><small style="color:var(--muted)">' + data.detalleErrores.join('<br>') + '</small>' : ''}`;
+    resEl.style.display = 'block';
+    if (data.agregados > 0) {
+      await loadAll();
+      renderEmpleados();
+      showToast(`✓ ${data.agregados} empleados importados`);
+    }
+    _impFile = null;
+    document.getElementById('imp-file').value = '';
+    const btn = document.getElementById('btn-confirmar-importar');
+    btn.disabled = true; btn.style.opacity = '0.5';
+  } catch(e) {
+    resEl.style.background = 'rgba(247,97,79,0.08)';
+    resEl.style.border     = '1px solid rgba(247,97,79,0.3)';
+    resEl.style.color      = 'var(--danger)';
+    resEl.textContent      = '✗ Error: ' + e.message;
+    resEl.style.display    = 'block';
+  }
+  setLoading('btn-confirmar-importar', false);
 }
 
 </script>
