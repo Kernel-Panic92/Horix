@@ -1,0 +1,9 @@
+.env
+node_modules/
+horas_extra.db
+*.db
+last_backup.json
+.ultimo_backup.json
+backups/
+logs/
+*.log
