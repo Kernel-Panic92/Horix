@@ -1116,9 +1116,12 @@ app.delete('/api/logo', soloAdmin, (req, res) => {
 // GET /api/version
 app.get('/api/version', (req, res) => {
   try {
-    const pkg = JSON.parse(fs.readFileSync(path.join(__dirname, 'package.json'), 'utf8'));
-    res.json({ version: pkg.version });
-  } catch { res.json({ version: '—' }); }
+    const pkg  = JSON.parse(fs.readFileSync(path.join(__dirname, 'package.json'), 'utf8'));
+    const rama = require('child_process')
+      .execSync('git branch --show-current 2>/dev/null || echo ""')
+      .toString().trim();
+    res.json({ version: pkg.version, rama: rama || 'main' });
+  } catch { res.json({ version: '—', rama: '' }); }
 });
 
 // INICIAR

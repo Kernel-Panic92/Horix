@@ -1627,7 +1627,10 @@ async function iniciarApp() {
   // Cargar versión desde package.json
 fetch('/api/version').then(r => r.json()).then(d => {
   const el = document.getElementById('app-version');
-  if (el) el.textContent = `v${d.version} — HORIX`;
+  if (el) {
+    const rama = d.rama && d.rama !== 'main' ? ` · 🌿 ${d.rama}` : '';
+    el.textContent = `v${d.version}${rama} — HORIX`;
+  }
 }).catch(() => {});
   await loadAll();
   aplicarLogo();
