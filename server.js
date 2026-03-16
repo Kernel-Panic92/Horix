@@ -8,6 +8,7 @@ const nodemailer = require('nodemailer');
 const multer     = require('multer');
 const AdmZip     = require('adm-zip');
 const bcrypt     = require('bcrypt');
+require('dotenv').config();
 const upload     = multer({ storage: multer.memoryStorage(), limits: { fileSize: 20 * 1024 * 1024 } });
 
 const BCRYPT_ROUNDS = 12;
@@ -221,8 +222,8 @@ async function enviarCorreo(para, asunto, cuerpo) {
   if (totalUsuarios.c === 0) {
     const primerCentro = db.prepare('SELECT nombre FROM centros LIMIT 1').get()?.nombre || 'Principal';
     db.prepare('INSERT INTO usuarios (id,nombre,email,password,rol,sede,activo,creado) VALUES (?,?,?,?,?,?,?,?)').run(
-      uid(), 'Administrador', 'admin@tuempresa.com',
-      await hashPassword('Admin2025!'), 'admin', primerCentro, 1, new Date().toISOString()
+      uid(), 'Administrador', process.env.ADMIN_EMAIL || 'admin@empresa.com',
+await hashPassword(process.env.ADMIN_PASS || 'Admin2025!'), 'admin', primerCentro, 1, new Date().toISOString()
     );
     console.log('👤 Usuario admin creado: admin@empresa.com / Admin2025!');
   }
