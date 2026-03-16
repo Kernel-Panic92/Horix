@@ -638,7 +638,7 @@ app.delete('/api/empleados/:id', soloAdmin, (req, res) => {
   res.json({ ok: true });
 });
 
-// POST /api/empleados/importar — importa desde CSV, skip duplicados por cédula
+// POST importar empleados — importa desde CSV, skip duplicados por cédula
 app.post('/api/empleados/importar', soloAdmin, upload.single('archivo'), (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No se recibió ningún archivo' });
   try {
@@ -646,16 +646,21 @@ app.post('/api/empleados/importar', soloAdmin, upload.single('archivo'), (req, r
     const lineas = texto.split('\n').map(l => l.trim()).filter(l => l);
     if (lineas.length < 2) return res.status(400).json({ error: 'El archivo está vacío o no tiene datos' });
 
-    const parseCsv = line => {
-      const cols = []; let cur = '', inQ = false;
-      for (const ch of line) {
-        if (ch === '"') { inQ = !inQ; }
-        else if (ch === ',' && !inQ) { cols.push(cur); cur = ''; }
-        else cur += ch;
-      }
-      cols.push(cur);
-      return cols.map(c => c.replace(/^"|"$/g, '').replace(/""/g, '"').trim());
-    };
+    const primeraLinea = lineas[0];
+const separador = primeraLinea.includes('\t') ? '\t'
+                : primeraLinea.includes(';')  ? ';'
+                : ',';
+
+const parseCsv = line => {
+  const cols = []; let cur = '', inQ = false;
+  for (const ch of line) {
+    if (ch === '"') { inQ = !inQ; }
+    else if (ch === separador && !inQ) { cols.push(cur); cur = ''; }
+    else cur += ch;
+  }
+  cols.push(cur);
+  return cols.map(c => c.replace(/^"|"$/g, '').replace(/""/g, '"').trim());
+};
 
     const headers = parseCsv(lineas[0]).map(h => h.toLowerCase());
     const idx = h => headers.indexOf(h);
