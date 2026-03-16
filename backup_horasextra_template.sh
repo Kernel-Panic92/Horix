@@ -80,8 +80,8 @@ HTTP_CODE=$(curl -s -o "$ARCHIVO_LOCAL" -w "%{http_code}" \
   "$APP_URL/api/backup")
 
 if [ "$HTTP_CODE" = "200" ] && [ -s "$ARCHIVO_LOCAL" ]; then
-  TAMAÑO=$(du -sh "$ARCHIVO_LOCAL" | cut -f1)
-  echo "$LOG_TAG  ✓ Backup: $ARCHIVO_LOCAL ($TAMAÑO)"
+  TAMANO=$(du -sh "$ARCHIVO_LOCAL" | cut -f1)
+  echo "$LOG_TAG  ✓ Backup: $ARCHIVO_LOCAL ($TAMANO)"
 else
   echo "$LOG_TAG  ✗ ERROR: Falló la descarga (HTTP $HTTP_CODE)"
   rm -f "$ARCHIVO_LOCAL"
@@ -93,9 +93,9 @@ if [ "$USAR_NAS" = "true" ]; then
   MONTAR_DESMONTADO=false
   if ! mountpoint -q "$SMB_MOUNT" 2>/dev/null; then
     echo "$LOG_TAG  📡 Montando share $SMB_SERVER..."
-    mkdir -p "$SMB_MOUNT"
-    mount -t cifs "$SMB_SERVER" "$SMB_MOUNT" \
-      -o username="$SMB_USER",password="$SMB_PASS",iocharset=utf8 2>/dev/null
+    sudo mkdir -p "$SMB_MOUNT"
+    sudo mount -t cifs "$SMB_SERVER" "$SMB_MOUNT" \
+      -o username="$SMB_USER",password="$SMB_PASS",iocharset=utf8,vers=3.0,noperm 2>/dev/null
     if [ $? -eq 0 ]; then
       echo "$LOG_TAG  ✓ Share montado"
       MONTAR_DESMONTADO=true
@@ -115,7 +115,7 @@ if [ "$USAR_NAS" = "true" ]; then
   fi
 
   if [ "$MONTAR_DESMONTADO" = true ]; then
-    umount "$SMB_MOUNT" 2>/dev/null && echo "$LOG_TAG  📡 Share desmontado"
+    sudo umount "$SMB_MOUNT" 2>/dev/null && echo "$LOG_TAG  📡 Share desmontado"
   fi
 fi
 

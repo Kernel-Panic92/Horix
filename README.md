@@ -1,4 +1,4 @@
-# Horix — Sistema de Control de Horas Extra
+# Horix v2.3.0 — Sistema de Control de Horas Extra
 
 Sistema web para la gestión y control de horas extra del personal, desarrollado para el área de Recursos Humanos.
 
@@ -8,21 +8,22 @@ Sistema web para la gestión y control de horas extra del personal, desarrollado
 |-----------|---------------|-------|
 | Node.js   | 18.0.0        | Instalado automáticamente por el instalador |
 | PM2       | cualquiera    | Instalado automáticamente por el instalador |
+| Fail2Ban  | cualquiera    | Instalado automáticamente por el instalador |
 | Nginx     | cualquiera    | Solo si se configura HTTPS. `sudo apt install nginx -y` |
 | Linux     | Ubuntu 20.04+ / Debian 11+ | |
 
 ## Instalación
 
 ```bash
-git clone git@github.com:Kernel-Panic92/Horix.git horas-extra
-cd horas-extra
+git clone git@github.com:Kernel-Panic92/Horix.git horix
+cd horix
 chmod +x install.sh
 ./install.sh
 ```
 
 El instalador configura interactivamente:
 
-- Puerto del servidor (default: 3000)
+- Puerto del servidor
 - Nombre de la empresa
 - Email y contraseña del administrador
 - Centro de operación inicial
@@ -81,6 +82,8 @@ pm2 restart horix       # Reiniciar servidor
 pm2 stop horix          # Detener servidor
 ./backup_horasextra.sh  # Ejecutar backup manual
 sudo crontab -l         # Ver tareas programadas
+sudo fail2ban-client status horix-login   # Ver IPs bloqueadas
+sudo fail2ban-client set horix-login unbanip <IP>  # Desbloquear IP
 ```
 
 ## Estructura del proyecto
@@ -94,11 +97,9 @@ horix/
 ├── install.sh                      # Instalador interactivo
 ├── backup_horasextra_template.sh   # Plantilla de backup (el instalador genera el .sh real)
 ├── package.json
+├── update.sh                       # Script de actualizacion
 └── LICENSE
 ```
-
-> **Nota:** `backup_horasextra.sh` (el script generado tras la instalación) contiene credenciales
-> del cliente y está excluido del repositorio vía `.gitignore`. Solo la plantilla se versiona.
 
 ## Seguridad
 

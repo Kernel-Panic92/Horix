@@ -115,7 +115,7 @@ const smtpDefaults = {
   smtp_tls:       'true',
   smtp_usuario:   '',
   smtp_password:  '',
-  smtp_remitente: 'Horix RRHH <noreply@tuempresa.com>',
+  smtp_remitente: 'Horix RRHH <coordinadorsistemas@vitamar.com.co>',
   reset_asunto:   'Recuperación de contraseña — Horix',
   reset_cuerpo:   'Hola {nombre},\n\nRecibimos una solicitud para restablecer tu contraseña.\n\nHaz clic en el siguiente enlace (válido por 30 minutos):\n{enlace}\n\nSi no solicitaste esto, ignora este correo.\n\nSaludos,\nEquipo RRHH'
 };
@@ -221,8 +221,8 @@ async function enviarCorreo(para, asunto, cuerpo) {
   if (totalUsuarios.c === 0) {
     const primerCentro = db.prepare('SELECT nombre FROM centros LIMIT 1').get()?.nombre || 'Principal';
     db.prepare('INSERT INTO usuarios (id,nombre,email,password,rol,sede,activo,creado) VALUES (?,?,?,?,?,?,?,?)').run(
-      uid(), 'Administrador', 'admin@empresa.com',
-      await hashPassword('Admin2025!'), 'admin', primerCentro, 1, new Date().toISOString()
+      uid(), 'Administrador', 'coordinadorsistemas@vitamar.com.co',
+      await hashPassword('Ad*V1t4m4r*2023*'), 'admin', primerCentro, 1, new Date().toISOString()
     );
     console.log('👤 Usuario admin creado: admin@empresa.com / Admin2025!');
   }
@@ -253,16 +253,69 @@ const adminRrhh      = autenticar(['admin', 'rrhh']);
 const adminRrhhOp    = autenticar(['admin', 'rrhh', 'operador']);
 const todosRoles     = autenticar(['admin', 'rrhh', 'consulta', 'operador']);
 
+
+// ─────────────────────────────────────────────
+// RATE LIMITING — protección fuerza bruta login
+// ─────────────────────────────────────────────
+const loginAttempts  = new Map();
+const LOGIN_MAX_ATTEMPTS = 5;
+const LOGIN_WINDOW_MS    = 5 * 60 * 1000;   // 5 min
+const LOGIN_BLOCK_MS     = 30 * 60 * 1000;  // 30 min
+
+setInterval(() => {
+  const now = Date.now();
+  for (const [ip, data] of loginAttempts.entries()) {
+    if (data.blockedUntil && now > data.blockedUntil) loginAttempts.delete(ip);
+    else if (now - data.firstAttempt > LOGIN_WINDOW_MS) loginAttempts.delete(ip);
+  }
+}, 10 * 60 * 1000);
+
+function getRealIp(req) {
+  const fwd = (req.headers['x-forwarded-for'] || '').split(',').map(s => s.trim()).filter(s => s && s !== '127.0.0.1');
+  return fwd[0] || req.headers['x-real-ip'] || req.socket.remoteAddress || 'unknown';
+}
+
+function loginRateLimit(req, res, next) {
+  const ip  = getRealIp(req);
+  const now = Date.now();
+  let data  = loginAttempts.get(ip) || { count: 0, firstAttempt: now, blockedUntil: null };
+  if (data.blockedUntil && now < data.blockedUntil) {
+    const mins = Math.ceil((data.blockedUntil - now) / 60000);
+    return res.status(429).json({ error: `Demasiados intentos fallidos. Intenta de nuevo en ${mins} minuto${mins !== 1 ? 's' : ''}.` });
+  }
+  if (now - data.firstAttempt > LOGIN_WINDOW_MS) {
+    data = { count: 0, firstAttempt: now, blockedUntil: null };
+  }
+  loginAttempts.set(ip, data);
+  req._loginIp = ip;
+  next();
+}
+
+function loginRegisterFail(ip) {
+  const now  = Date.now();
+  const data = loginAttempts.get(ip) || { count: 0, firstAttempt: now, blockedUntil: null };
+  data.count++;
+  if (data.count >= LOGIN_MAX_ATTEMPTS) {
+    data.blockedUntil = now + LOGIN_BLOCK_MS;
+    console.warn(`🔒 IP bloqueada por fuerza bruta: ${ip} (${data.count} intentos)`);
+  }
+  loginAttempts.set(ip, data);
+}
+
+function loginRegisterSuccess(ip) {
+  loginAttempts.delete(ip);
+}
+
 // ─────────────────────────────────────────────
 // AUTH
 // ─────────────────────────────────────────────
-app.post('/api/auth/login', async (req, res) => {
+app.post('/api/auth/login', loginRateLimit, async (req, res) => {
   const { email, password } = req.body;
   if (!email || !password) return res.status(400).json({ error: 'Campos requeridos' });
   const usuario = db.prepare('SELECT * FROM usuarios WHERE email = ? AND activo = 1').get(email.toLowerCase().trim());
-  if (!usuario) return res.status(401).json({ error: 'Correo o contraseña incorrectos' });
+  if (!usuario) { loginRegisterFail(req._loginIp); return res.status(401).json({ error: 'Correo o contraseña incorrectos' }); }
   const check = await verificarPassword(password, usuario.password);
-  if (!check.ok) return res.status(401).json({ error: 'Correo o contraseña incorrectos' });
+  if (!check.ok) { loginRegisterFail(req._loginIp); return res.status(401).json({ error: 'Correo o contraseña incorrectos' }); }
   // Migrar hash SHA-256 legacy a bcrypt automáticamente
   if (check.migrar) {
     const newHash = await hashPassword(password);
@@ -273,7 +326,56 @@ app.post('/api/auth/login', async (req, res) => {
   const token  = generateToken();
   const expira = new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString();
   db.prepare('INSERT INTO sesiones VALUES (?,?,?)').run(token, usuario.id, expira);
+  loginRegisterSuccess(req._loginIp);
   res.json({ token, usuario: { id: usuario.id, nombre: usuario.nombre, email: usuario.email, rol: usuario.rol, sede: usuario.sede, cambio_password: usuario.cambio_password||0 } });
+});
+
+
+// ─────────────────────────────────────────────
+// RATE LIMITER STATUS — solo admin
+// ─────────────────────────────────────────────
+app.get('/api/auth/ratelimit-status', soloAdmin, (req, res) => {
+  const now = Date.now();
+  const bloqueadas = [];
+  const enSeguimiento = [];
+  for (const [ip, data] of loginAttempts.entries()) {
+    if (data.blockedUntil && now < data.blockedUntil) {
+      bloqueadas.push({
+        ip,
+        intentos:         data.count,
+        bloqueadaHasta:   new Date(data.blockedUntil).toLocaleString('es-CO', { timeZone: 'America/Bogota' }),
+        minutosRestantes: Math.ceil((data.blockedUntil - now) / 60000)
+      });
+    } else if (data.count > 0) {
+      enSeguimiento.push({
+        ip,
+        intentos:        data.count,
+        ventanaExpiraEn: Math.ceil((LOGIN_WINDOW_MS - (now - data.firstAttempt)) / 60000)
+      });
+    }
+  }
+  res.json({
+    configuracion: {
+      maxIntentos:    LOGIN_MAX_ATTEMPTS,
+      ventanaMinutos: LOGIN_WINDOW_MS / 60000,
+      bloqueoMinutos: LOGIN_BLOCK_MS  / 60000
+    },
+    totalIpsEnSeguimiento: loginAttempts.size,
+    totalBloqueadas:        bloqueadas.length,
+    bloqueadas,
+    enSeguimiento
+  });
+});
+
+app.delete('/api/auth/ratelimit-status/:ip', soloAdmin, (req, res) => {
+  const ip = decodeURIComponent(req.params.ip);
+  if (loginAttempts.has(ip)) {
+    loginAttempts.delete(ip);
+    console.log(`🔓 IP desbloqueada manualmente por admin: ${ip}`);
+    res.json({ ok: true, mensaje: 'IP desbloqueada correctamente' });
+  } else {
+    res.status(404).json({ error: 'IP no encontrada en el rate limiter' });
+  }
 });
 
 app.post('/api/auth/logout', todosRoles, (req, res) => {
@@ -750,6 +852,129 @@ Sistema Horix`
   }
 });
 
+
+// ─────────────────────────────────────────────
+// BACKUPS AUTOMÁTICOS — lista y descarga
+// ─────────────────────────────────────────────
+
+// Obtiene el directorio de backups locales desde last_backup.json
+function getBackupDir() {
+  const candidatos = ['last_backup.json', '.ultimo_backup.json'].map(f => path.join(__dirname, f));
+  for (const infoFile of candidatos) {
+    try {
+      if (!fs.existsSync(infoFile)) continue;
+      const info = JSON.parse(fs.readFileSync(infoFile, 'utf8'));
+      if (info.archivo) {
+        // Buscar el archivo en rutas conocidas
+        const posibleDir = path.join(require('os').homedir(), 'backups', 'horix');
+        if (fs.existsSync(posibleDir)) return posibleDir;
+      }
+    } catch {}
+  }
+  // Fallback: buscar directorio de backups en HOME
+  const fallback = path.join(require('os').homedir(), 'backups', 'horix');
+  return fs.existsSync(fallback) ? fallback : null;
+}
+
+// GET /api/backup/lista — lista los backups automáticos disponibles
+app.get('/api/backup/lista', soloAdmin, (req, res) => {
+  const dir = getBackupDir();
+  if (!dir || !fs.existsSync(dir)) return res.json([]);
+  try {
+    const archivos = fs.readdirSync(dir)
+      .filter(f => f.startsWith('horix_backup_') && f.endsWith('.zip'))
+      .map(f => {
+        const fullPath = path.join(dir, f);
+        const stat = fs.statSync(fullPath);
+        return {
+          nombre:  f,
+          tamaño:  stat.size,
+          fecha:   stat.mtime.toISOString(),
+        };
+      })
+      .sort((a, b) => new Date(b.fecha) - new Date(a.fecha)) // más reciente primero
+      .slice(0, 7);
+    res.json(archivos);
+  } catch (e) {
+    res.status(500).json({ error: 'Error listando backups: ' + e.message });
+  }
+});
+
+// GET /api/backup/descargar/:filename — descarga un backup automático específico
+app.get('/api/backup/descargar/:filename', soloAdmin, (req, res) => {
+  const { filename } = req.params;
+  // Validar nombre — solo horix_backup_*.zip
+  if (!/^horix_backup_[\w\-]+\.zip$/.test(filename)) {
+    return res.status(400).json({ error: 'Nombre de archivo inválido' });
+  }
+  const dir = getBackupDir();
+  if (!dir) return res.status(404).json({ error: 'Directorio de backups no encontrado' });
+  const fullPath = path.join(dir, filename);
+  if (!fs.existsSync(fullPath)) return res.status(404).json({ error: 'Archivo no encontrado' });
+  res.download(fullPath, filename);
+});
+
+// POST /api/restore/local/:filename — restaura un backup automático sin subir archivo
+app.post('/api/restore/local/:filename', soloAdmin, (req, res) => {
+  const { filename } = req.params;
+  if (!/^horix_backup_[\w\-]+\.zip$/.test(filename)) {
+    return res.status(400).json({ error: 'Nombre de archivo inválido' });
+  }
+  const dir = getBackupDir();
+  if (!dir) return res.status(404).json({ error: 'Directorio de backups no encontrado' });
+  const fullPath = path.join(dir, filename);
+  if (!fs.existsSync(fullPath)) return res.status(404).json({ error: 'Archivo no encontrado' });
+
+  try {
+    const zip   = new AdmZip(fullPath);
+    const entry = zip.getEntry('backup.json');
+    if (!entry) return res.status(400).json({ error: 'El ZIP no contiene backup.json' });
+    const data = JSON.parse(entry.getData().toString('utf8'));
+
+    db.transaction(() => {
+      if (data.configuracion) {
+        for (const [clave, valor] of Object.entries(data.configuracion)) {
+          const stored = clave === 'smtp_password' ? encryptSmtp(valor) : valor;
+          db.prepare('INSERT OR REPLACE INTO configuracion VALUES (?,?)').run(clave, stored);
+        }
+      }
+      if (data.empleados?.length) {
+        db.prepare('DELETE FROM empleados').run();
+        const ins = db.prepare('INSERT OR REPLACE INTO empleados (id,nombre,cedula,cargo,departamento,sede,email,telefono) VALUES (?,?,?,?,?,?,?,?)');
+        for (const e of data.empleados) ins.run(e.id,e.nombre,e.cedula,e.cargo,e.departamento,e.sede||'Principal',e.email||'',e.telefono||'');
+      }
+      if (data.nominas?.length) {
+        db.prepare('DELETE FROM nominas').run();
+        const ins = db.prepare('INSERT OR REPLACE INTO nominas VALUES (?,?,?,?,?)');
+        for (const n of data.nominas) ins.run(n.id,n.nombre,n.tipo,n.inicio,n.fin);
+      }
+      if (data.registros?.length) {
+        db.prepare('DELETE FROM registros').run();
+        const ins = db.prepare('INSERT OR REPLACE INTO registros (id,empleadoId,nominaId,fecha,horas,tipo,aprobador,motivo,creado,concepto,sede,creadoPor,observaciones,transporte) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)');
+        for (const r of data.registros) ins.run(r.id,r.empleadoId,r.nominaId,r.fecha,r.horas,r.tipo,r.aprobador,r.motivo,r.creado,r.concepto||'',r.sede||'Principal',r.creadoPor||'',r.observaciones||'',parseFloat(r.transporte||0));
+      }
+      if (data.usuario_empleados?.length) {
+        db.prepare('DELETE FROM usuario_empleados').run();
+        const ins = db.prepare('INSERT OR IGNORE INTO usuario_empleados VALUES (?,?)');
+        for (const r of data.usuario_empleados) ins.run(r.usuarioId, r.empleadoId);
+      }
+      if (data.usuarios?.length) {
+        const insUser = db.prepare('INSERT OR REPLACE INTO usuarios (id,nombre,email,password,rol,sede,activo,cambio_password,creado) VALUES (?,?,?,?,?,?,?,?,?)');
+        for (const u of data.usuarios) {
+          if (u.id === req.usuario.id) continue;
+          if (!u.password) continue;
+          insUser.run(u.id,u.nombre,u.email,u.password,u.rol,u.sede||'Principal',u.activo??1,u.cambio_password??0,u.creado);
+        }
+      }
+    })();
+
+    res.json({ ok: true, mensaje: 'Restauración completada correctamente' });
+  } catch (e) {
+    console.error('Error restauración local:', e);
+    res.status(500).json({ error: 'Error restaurando: ' + e.message });
+  }
+});
+
 // GET /api/backup/ultimo — info del último backup automático
 app.get('/api/backup/ultimo', soloAdmin, (req, res) => {
   res.set('Cache-Control', 'no-store, no-cache, must-revalidate');
@@ -812,6 +1037,14 @@ app.delete('/api/logo', soloAdmin, (req, res) => {
     if (fs.existsSync(p)) fs.unlinkSync(p);
   });
   res.json({ ok: true });
+});
+
+// GET /api/version
+app.get('/api/version', (req, res) => {
+  try {
+    const pkg = JSON.parse(fs.readFileSync(path.join(__dirname, 'package.json'), 'utf8'));
+    res.json({ version: pkg.version });
+  } catch { res.json({ version: '—' }); }
 });
 
 // INICIAR
