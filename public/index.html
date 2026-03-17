@@ -1627,7 +1627,10 @@ async function iniciarApp() {
   // Cargar versión desde package.json
 fetch('/api/version').then(r => r.json()).then(d => {
   const el = document.getElementById('app-version');
-  if (el) el.textContent = `v${d.version} — HORIX`;
+  if (el) {
+    const rama = d.rama && d.rama !== 'main' ? ` · 🌿 ${d.rama}` : '';
+    el.textContent = `v${d.version}${rama} — HORIX`;
+  }
 }).catch(() => {});
   await loadAll();
   aplicarLogo();
@@ -1980,25 +1983,15 @@ function renderDashboard() {
       return;
     }
 
-    const top    = sorted[0];
-    const maxH   = top.h;
-    const rest   = sorted.slice(1, 5);
-    const totalRegsTop = anioRegs.filter(r => r.nominaId === top.nom.id).length;
-
-    container.innerHTML = `
-      <div class="periodo-winner">
-        <div class="periodo-winner-name">🥇 ${top.nom.nombre}</div>
-        <div class="periodo-winner-horas">${top.h.toFixed(1)}<span style="font-size:14px;font-weight:400;color:var(--muted);margin-left:4px;">horas</span></div>
-        <div class="periodo-winner-sub">${totalRegsTop} registro${totalRegsTop !== 1 ? 's' : ''} · ${top.nom.tipo}</div>
-      </div>
-      ${rest.length ? '<div style="margin-top:4px;">' + rest.map((x, i) => `
-        <div class="periodo-runner">
-          <span class="periodo-runner-rank">#${i + 2}</span>
-          <div class="periodo-runner-bar-wrap"><div class="periodo-runner-bar" style="width:${(x.h/maxH*100).toFixed(0)}%"></div></div>
-          <span class="periodo-runner-label" title="${x.nom.nombre}">${x.nom.nombre}</span>
-          <span class="periodo-runner-horas">${x.h.toFixed(1)}h</span>
-        </div>`).join('') + '</div>' : ''}
-    `;
+    const top          = sorted[0];
+const totalRegsTop = anioRegs.filter(r => r.nominaId === top.nom.id).length;
+container.innerHTML = `
+  <div class="periodo-winner">
+    <div class="periodo-winner-name">🥇 ${top.nom.nombre}</div>
+    <div class="periodo-winner-horas">${top.h.toFixed(1)}<span style="font-size:14px;font-weight:400;color:var(--muted);margin-left:4px;">horas</span></div>
+    <div class="periodo-winner-sub">${totalRegsTop} registro${totalRegsTop !== 1 ? 's' : ''} · ${top.nom.tipo}</div>
+  </div>
+`;
   })();
   document.getElementById('dash-chart-anio').textContent = anio;
 
