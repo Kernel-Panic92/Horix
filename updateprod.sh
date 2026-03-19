@@ -77,7 +77,7 @@ else
 fi
 
 # ── Obtener release ────────────
-GITHUB_TOKEN=$(cat ~/horix/.horix_token 2>/dev/null || echo '')
+GITHUB_TOKEN=$(cat ~/.horix_token 2>/dev/null || echo '')
 REPO="Kernel-Panic92/Horix"
 
 if [[ "$CHANNEL" == "stable" ]]; then
