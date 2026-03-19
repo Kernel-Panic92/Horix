@@ -36,14 +36,14 @@ else
 fi
 # ── Obtener última release desde GitHub ────────────
 info "Obteniendo última versión desde GitHub Releases..."
-GITHUB_TOKEN=$(cat ~/.horix_token 2>/dev/null || echo '')
+GITHUB_TOKEN=$(cat ~/horix/.horix_token 2>/dev/null || echo '')
 REPO="Kernel-Panic92/Horix"
 
 # Obtener URL del ZIP de la última release
 RELEASE_INFO=$(curl -s \
   -H "Authorization: token $GITHUB_TOKEN" \
   -H "Accept: application/vnd.github.v3+json" \
-  "https://api.github.com/repos/$REPO/releases/latest")
+  "https://api.github.com/repos/$REPO/releases/canary")
 
 RELEASE_TAG=$(echo "$RELEASE_INFO" | node -e "
   let d=''; process.stdin.on('data',c=>d+=c);
