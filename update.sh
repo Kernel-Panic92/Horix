@@ -34,34 +34,63 @@ if [[ -f "horas_extra.db" ]]; then
 else
   warn "No se encontró horas_extra.db — omitiendo backup preventivo"
 fi
-# ── 3. Git pull — robusto, no mata el script si falla
-if [[ "$TIENE_GIT" == "true" ]]; then
-  info "Obteniendo últimos cambios del repositorio..."
-  git fetch origin 2>/dev/null || warn "No se pudo conectar al repositorio remoto"
+# ── Obtener última release desde GitHub ────────────
+info "Obteniendo última versión desde GitHub Releases..."
+GITHUB_TOKEN=$(cat ~/.horix_token 2>/dev/null || echo '')
+REPO="Kernel-Panic92/Horix"
 
-  # Detectar rama principal de forma segura
-  RAMA=$(git remote show origin 2>/dev/null | grep 'HEAD branch' | awk '{print $NF}')
-  RAMA=${RAMA:-main}
+# Obtener URL del ZIP de la última release
+RELEASE_INFO=$(curl -s \
+  -H "Authorization: token $GITHUB_TOKEN" \
+  -H "Accept: application/vnd.github.v3+json" \
+  "https://api.github.com/repos/$REPO/releases/latest")
 
-  LOCAL=$(git rev-parse HEAD 2>/dev/null || echo "")
-  REMOTE=$(git rev-parse "origin/$RAMA" 2>/dev/null || echo "")
+RELEASE_TAG=$(echo "$RELEASE_INFO" | node -e "
+  let d=''; process.stdin.on('data',c=>d+=c);
+  process.stdin.on('end',()=>{ try{ console.log(JSON.parse(d).tag_name||''); }catch(e){ console.log(''); } });
+")
 
-  if [[ -z "$REMOTE" ]]; then
-    warn "No se pudo verificar la versión remota — continuando con versión local"
-    SIN_CAMBIOS=true
-  elif [[ "$LOCAL" == "$REMOTE" ]]; then
-    ok "Ya estás en la versión más reciente"
-    SIN_CAMBIOS=true
-  else
-    # pull sin set -e para no morir si hay conflictos
-    if git pull origin "$RAMA"; then
-      ok "Código actualizado desde rama '$RAMA'"
-    else
-      warn "git pull falló — continuando con versión local"
-    fi
-    SIN_CAMBIOS=false
-  fi
+RELEASE_URL=$(echo "$RELEASE_INFO" | node -e "
+  let d=''; process.stdin.on('data',c=>d+=c);
+  process.stdin.on('end',()=>{ try{ console.log(JSON.parse(d).zipball_url||''); }catch(e){ console.log(''); } });
+")
+
+if [ -z "$RELEASE_TAG" ] || [ -z "$RELEASE_URL" ]; then
+  err "No se pudo obtener la última release. Verifica el token y el repositorio."
 fi
+
+ok "Última release: $RELEASE_TAG"
+
+# Descargar ZIP de la release
+TMPDIR_UPDATE=$(mktemp -d)
+info "Descargando $RELEASE_TAG..."
+curl -sL \
+  -H "Authorization: token $GITHUB_TOKEN" \
+  -H "Accept: application/vnd.github.v3+json" \
+  "$RELEASE_URL" \
+  -o "$TMPDIR_UPDATE/release.zip"
+
+if [ ! -s "$TMPDIR_UPDATE/release.zip" ]; then
+  err "Error descargando la release."
+fi
+
+# Extraer y copiar archivos
+unzip -q "$TMPDIR_UPDATE/release.zip" -d "$TMPDIR_UPDATE/extracted"
+EXTRACTED_DIR=$(ls "$TMPDIR_UPDATE/extracted")
+
+# Copiar solo los archivos del proyecto (no sobreescribir BD ni .env)
+rsync -av \
+  --exclude='horas_extra.db' \
+  --exclude='.env' \
+  --exclude='.backup_pass' \
+  --exclude='last_backup.json' \
+  --exclude='node_modules/' \
+  --exclude='public/logo_empresa.*' \
+  "$TMPDIR_UPDATE/extracted/$EXTRACTED_DIR/" \
+  "$INSTALL_DIR/"
+
+rm -rf "$TMPDIR_UPDATE"
+ok "Archivos actualizados desde release $RELEASE_TAG"
 # ── 4. Dependencias npm
 info "Actualizando dependencias npm..."
 npm install --production

@@ -1,6 +1,6 @@
 #!/bin/bash
 # ═══════════════════════════════════════════════════════════════
-#  install.sh — Instalador automático de Horix v2.3.0
+#  install.sh — Instalador automático de Horix v2.3.1
 #
 #  Uso:
 #    chmod +x install.sh
@@ -19,7 +19,7 @@ INSTALL_DIR="$(pwd)"
 
 echo ""
 echo -e "${AZUL}══════════════════════════════════════════════${RESET}"
-echo -e "${AZUL}   Horix — Instalador v2.3.0${RESET}"
+echo -e "${AZUL}   Horix — Instalador v2.3.1${RESET}"
 echo -e "${AZUL}   Sistema de Control de Horas Extra${RESET}"
 echo -e "${AZUL}══════════════════════════════════════════════${RESET}"
 echo ""
