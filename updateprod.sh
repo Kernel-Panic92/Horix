@@ -34,33 +34,49 @@ if [[ -f "horas_extra.db" ]]; then
 else
   warn "No se encontró horas_extra.db — omitiendo backup preventivo"
 fi
-# ── Obtener última release desde GitHub ────────────
-info "Obteniendo última versión desde GitHub Releases..."
-GITHUB_TOKEN=$(cat ~/.horix_token 2>/dev/null || echo '')
+# ── Canal de actualización ────────────
+CHANNEL=${1:-stable}
+info "Canal seleccionado: $CHANNEL"
+
+GITHUB_TOKEN=$(cat ~/horix/.horix_token 2>/dev/null || echo '')
 REPO="Kernel-Panic92/Horix"
 
-# Obtener URL del ZIP de la última release
-RELEASE_INFO=$(curl -s \
-  -H "Authorization: token $GITHUB_TOKEN" \
-  -H "Accept: application/vnd.github.v3+json" \
-  "https://api.github.com/repos/$REPO/releases/latest")
+if [[ "$CHANNEL" == "stable" ]]; then
+  RELEASE_INFO=$(curl -s \
+    -H "Authorization: token $GITHUB_TOKEN" \
+    -H "Accept: application/vnd.github.v3+json" \
+    "https://api.github.com/repos/$REPO/releases/latest")
 
-RELEASE_TAG=$(echo "$RELEASE_INFO" | node -e "
-  let d=''; process.stdin.on('data',c=>d+=c);
-  process.stdin.on('end',()=>{ try{ console.log(JSON.parse(d).tag_name||''); }catch(e){ console.log(''); } });
-")
+elif [[ "$CHANNEL" == "beta" ]]; then
+  ALL_RELEASES=$(curl -s \
+    -H "Authorization: token $GITHUB_TOKEN" \
+    -H "Accept: application/vnd.github.v3+json" \
+    "https://api.github.com/repos/$REPO/releases")
 
-RELEASE_URL=$(echo "$RELEASE_INFO" | node -e "
-  let d=''; process.stdin.on('data',c=>d+=c);
-  process.stdin.on('end',()=>{ try{ console.log(JSON.parse(d).zipball_url||''); }catch(e){ console.log(''); } });
-")
+  RELEASE_TAG=$(echo "$ALL_RELEASES" | jq -r '[.[] | select(.prerelease==true)][0].tag_name')
+  RELEASE_URL=$(echo "$ALL_RELEASES" | jq -r '[.[] | select(.prerelease==true)][0].zipball_url')
 
-if [ -z "$RELEASE_TAG" ] || [ -z "$RELEASE_URL" ]; then
-  err "No se pudo obtener la última release. Verifica el token y el repositorio."
+else
+  # fallback: usar tag directo (ej: canary)
+  RELEASE_INFO=$(curl -s \
+    -H "Authorization: token $GITHUB_TOKEN" \
+    -H "Accept: application/vnd.github.v3+json" \
+    "https://api.github.com/repos/$REPO/releases/tags/$CHANNEL")
 fi
 
-ok "Última release: $RELEASE_TAG"
+# Si no es beta, parse normal
+if [[ "$CHANNEL" != "beta" ]]; then
+  RELEASE_TAG=$(echo "$RELEASE_INFO" | jq -r '.tag_name')
+  RELEASE_URL=$(echo "$RELEASE_INFO" | jq -r '.zipball_url')
+fi
 
+# Validación
+if [ -z "$RELEASE_TAG" ] || [ "$RELEASE_TAG" == "null" ] || \
+   [ -z "$RELEASE_URL" ] || [ "$RELEASE_URL" == "null" ]; then
+  err "No se pudo obtener la release para el canal '$CHANNEL'"
+fi
+
+ok "Release detectada: $RELEASE_TAG"
 # Descargar ZIP de la release
 TMPDIR_UPDATE=$(mktemp -d)
 info "Descargando $RELEASE_TAG..."
