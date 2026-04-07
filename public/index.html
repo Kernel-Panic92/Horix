@@ -2292,10 +2292,10 @@ function abrirModalAdjuntos(regId) {
         <div style="font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${a.nombre}">${a.nombre}</div>
         <div style="font-size:11px;color:var(--muted);">${formatBytes(a.tamano)} · ${new Date(a.subido).toLocaleString('es-CO')}</div>
       </div>
-      <a href="/api/adjuntos/${a.id}/descargar" download="${a.nombre}"
-        style="background:var(--accent);color:#fff;border:none;border-radius:7px;padding:5px 10px;font-size:12px;cursor:pointer;text-decoration:none;">
+      <button onclick="descargarAdjuntoAuth('${a.id}','${a.nombre}')"
+        style="background:var(--accent);color:#fff;border:none;border-radius:7px;padding:5px 10px;font-size:12px;cursor:pointer;">
         ⬇ Descargar
-      </a>
+      </button>
       ${puedeElim ? `<button onclick="eliminarAdjunto('${a.id}','${regId}')" style="background:var(--danger);color:#fff;border:none;border-radius:7px;padding:5px 10px;font-size:12px;cursor:pointer;">🗑</button>` : ''}
     </div>`).join('');
   // Reutilizar el sistema de modal existente (confirmar) como contenedor informativo
@@ -2312,6 +2312,24 @@ function abrirModalAdjuntos(regId) {
     </div>`;
   document.body.appendChild(overlay);
   overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+}
+
+async function descargarAdjuntoAuth(adjId, nombre) {
+  try {
+    const res = await fetch(`/api/adjuntos/${adjId}/descargar`, {
+      headers: { 'Authorization': 'Bearer ' + sesion.token }
+    });
+    if (!res.ok) { showToast('No se pudo descargar el archivo.', 'error'); return; }
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = nombre;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 5000);
+  } catch(e) { showToast('Error al descargar: ' + e.message, 'error'); }
 }
 
 async function eliminarAdjunto(adjId, regId) {
