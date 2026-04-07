@@ -1,6 +1,6 @@
 {
   "name": "horix",
-  "version": "2.3.1",
+  "version": "2.3.2",
   "description": "Horix — Sistema de Control de Horas Extra",
   "main": "server.js",
   "scripts": {
