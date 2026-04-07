@@ -123,7 +123,7 @@ unzip -q "$TMPDIR_UPDATE/release.zip" -d "$TMPDIR_UPDATE/extracted"
 EXTRACTED_DIR=$(ls "$TMPDIR_UPDATE/extracted")
 
 # ── Copiar ────────────
-rsync -av \
+rsync -av --delete --checksum \
   --exclude='horas_extra.db' \
   --exclude='.env' \
   --exclude='node_modules/' \
