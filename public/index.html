@@ -884,7 +884,7 @@ async function desbloquearIP(ip) {
           </div>
           <div class="form-group"><label>Sede</label><input type="text" id="reg-sede" readonly placeholder="Se completa al elegir empleado" style="background:var(--surface2);color:var(--muted);cursor:default;opacity:0.8;"/></div>
           <div class="form-group"><label>Período de Nómina *</label><select id="reg-nomina"><option value="">Seleccionar...</option></select></div>
-          <div class="form-group"><label>Fecha *</label><input type="date" id="reg-fecha"/></div>
+          <div class="form-group"><label>Fecha *</label><input type="date" id="reg-fecha" max=""/><script>document.getElementById('reg-fecha').max=new Date().toISOString().split('T')[0];</script></div>
           <div class="form-group"><label>Horas Laboradas *</label><input type="number" id="reg-horas" min="0.5" max="24" step="0.5" placeholder="Ej: 2.5"/></div>
           <div class="form-group"><label>Tipo *</label>
             <select id="reg-tipo" onchange="onTipoChange()">
@@ -904,6 +904,19 @@ async function desbloquearIP(ip) {
           <div class="form-group"><label>Concepto de Nómina *</label><input type="text" id="reg-concepto" placeholder="Código interno (Ej: HE-001)"/></div>
           <div class="form-group full"><label>Motivo / Descripción *</label><textarea id="reg-motivo" placeholder="Describe el motivo o actividad realizada..."></textarea></div>
           <div class="form-group full"><label>Observaciones</label><textarea id="reg-observaciones" placeholder="Observaciones adicionales (opcional)..." style="min-height:80px;"></textarea></div>
+          <div class="form-group full">
+            <label>Archivos Adjuntos <span style="font-weight:400;color:var(--muted);font-size:12px;">(Opcional · PDF, imágenes, Word, Excel · máx. 10 MB c/u)</span></label>
+            <div id="adjuntos-drop-zone" onclick="document.getElementById('adjuntos-input').click()"
+              style="border:2px dashed var(--border);border-radius:10px;padding:20px;text-align:center;cursor:pointer;transition:border-color 0.2s;background:var(--surface2);"
+              ondragover="event.preventDefault();this.style.borderColor='var(--accent)'"
+              ondragleave="this.style.borderColor='var(--border)'"
+              ondrop="onAdjuntosDrop(event)">
+              <div style="font-size:22px;margin-bottom:6px;">📎</div>
+              <div style="font-size:13px;color:var(--muted);">Clic o arrastra archivos aquí</div>
+            </div>
+            <input type="file" id="adjuntos-input" multiple accept=".pdf,.jpg,.jpeg,.png,.gif,.webp,.doc,.docx,.xls,.xlsx,.txt,.csv" style="display:none;" onchange="onAdjuntosSelect(event)"/>
+            <div id="adjuntos-lista" style="margin-top:10px;display:flex;flex-direction:column;gap:6px;"></div>
+          </div>
         </div>
         <div style="margin-top:24px;display:flex;gap:10px;">
           <button class="btn btn-primary" id="btn-guardar-reg" onclick="guardarRegistro()">✓ Guardar Registro</button>
@@ -927,7 +940,7 @@ async function desbloquearIP(ip) {
         <button class="btn btn-secondary btn-sm" onclick="exportarCSV('historial')">📥 Exportar</button>
       </div>
       <div class="table-wrap table-scroll-mobile" style="overflow-x:auto;">
-        <table style="min-width:1300px;"><thead><tr><th>Empleado</th><th>Cargo</th><th>Sede</th><th>Fecha</th><th>Horas</th><th>Tipo</th><th>Período</th><th>Concepto</th><th>Motivo</th><th>Aprobador</th><th>Registrado por</th><th>Transporte</th><th>Observaciones</th><th id="hist-th-acciones">Acciones</th></tr></thead>
+        <table style="min-width:1400px;"><thead><tr><th>Empleado</th><th>Cargo</th><th>Sede</th><th>Fecha</th><th>Horas</th><th>Tipo</th><th>Período</th><th>Concepto</th><th>Motivo</th><th>Aprobador</th><th>Registrado por</th><th>Transporte</th><th>Observaciones</th><th>Adjuntos</th><th id="hist-th-acciones">Acciones</th></tr></thead>
         <tbody id="hist-body"></tbody></table>
       </div>
     </div>
@@ -2157,13 +2170,25 @@ async function guardarRegistro() {
   const obs       = document.getElementById('reg-observaciones').value.trim();
   const transp    = tipo === 'transporte' ? parseFloat(document.getElementById('reg-transporte').value||0) : 0;
   if (!empId||!nomId||!fecha||!tipo||!apro||!concep||!motiv) { showToast('Completa todos los campos.','error'); return; }
+  if (fecha > new Date().toISOString().split('T')[0]) { showToast('La fecha no puede ser futura.','error'); return; }
   if (tipo === 'transporte' && transp <= 0) { showToast('Ingresa el valor de transporte.','error'); return; }
   if (tipo !== 'transporte' && !horas)      { showToast('Ingresa las horas.','error'); return; }
   if (tipo !== 'transporte' && (parseFloat(horas)<=0||parseFloat(horas)>24)) { showToast('Horas deben estar entre 0.5 y 24.','error'); return; }
   setLoading('btn-guardar-reg',true);
   try {
-    await POST('/api/registros',{empleadoId:empId,nominaId:nomId,fecha,horas:tipo==='transporte'?0:parseFloat(horas),tipo,concepto:concep,aprobador:apro,motivo:motiv,observaciones:obs,transporte:transp});
-    limpiarFormulario(); showToast('✓ Registro guardado.');
+    const { id: regId } = await POST('/api/registros',{empleadoId:empId,nominaId:nomId,fecha,horas:tipo==='transporte'?0:parseFloat(horas),tipo,concepto:concep,aprobador:apro,motivo:motiv,observaciones:obs,transporte:transp});
+    // Subir adjuntos si los hay
+    const archivos = adjuntosSeleccionados || [];
+    for (const archivo of archivos) {
+      const fd = new FormData();
+      fd.append('archivo', archivo);
+      await fetch(`/api/registros/${regId}/adjuntos`, {
+        method: 'POST',
+        headers: { 'Authorization': 'Bearer ' + sesion.token },
+        body: fd
+      });
+    }
+    limpiarFormulario(); showToast('✓ Registro guardado' + (archivos.length ? ` con ${archivos.length} adjunto(s).` : '.'));
   } catch(e) { showToast(e.message,'error'); }
   setLoading('btn-guardar-reg',false);
 }
@@ -2176,6 +2201,154 @@ function limpiarFormulario() {
   document.getElementById('reg-sede').value='';
   document.getElementById('reg-emp-search').value='';
   document.getElementById('reg-empleado').value='';
+  adjuntosSeleccionados = [];
+  document.getElementById('adjuntos-lista').innerHTML = '';
+  document.getElementById('adjuntos-input').value = '';
+}
+
+// ═══════════════════════════════════════════════════
+// ADJUNTOS
+// ═══════════════════════════════════════════════════
+let adjuntosSeleccionados = [];
+
+function iconoMime(mime) {
+  if (mime.startsWith('image/')) return '🖼️';
+  if (mime === 'application/pdf') return '📄';
+  if (mime.includes('word')) return '📝';
+  if (mime.includes('excel') || mime.includes('spreadsheet')) return '📊';
+  return '📎';
+}
+function formatBytes(b) {
+  if (b < 1024) return b + ' B';
+  if (b < 1024*1024) return (b/1024).toFixed(1) + ' KB';
+  return (b/(1024*1024)).toFixed(1) + ' MB';
+}
+
+function onAdjuntosSelect(event) {
+  agregarArchivos(Array.from(event.target.files));
+}
+function onAdjuntosDrop(event) {
+  event.preventDefault();
+  document.getElementById('adjuntos-drop-zone').style.borderColor = 'var(--border)';
+  agregarArchivos(Array.from(event.dataTransfer.files));
+}
+function agregarArchivos(files) {
+  const permitidos = ['image/jpeg','image/png','image/gif','image/webp','application/pdf',
+    'application/msword','application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'application/vnd.ms-excel','application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    'text/plain','text/csv'];
+  const maxSize = 10 * 1024 * 1024;
+  let errores = [];
+  files.forEach(f => {
+    if (!permitidos.includes(f.type)) { errores.push(`"${f.name}" tiene un tipo no permitido.`); return; }
+    if (f.size > maxSize) { errores.push(`"${f.name}" supera el límite de 10 MB.`); return; }
+    if (adjuntosSeleccionados.find(a => a.name === f.name && a.size === f.size)) return; // duplicado
+    adjuntosSeleccionados.push(f);
+  });
+  if (errores.length) showToast(errores[0], 'error');
+  renderAdjuntosSeleccionados();
+}
+function renderAdjuntosSeleccionados() {
+  const lista = document.getElementById('adjuntos-lista');
+  if (!adjuntosSeleccionados.length) { lista.innerHTML = ''; return; }
+  lista.innerHTML = adjuntosSeleccionados.map((f, i) => `
+    <div style="display:flex;align-items:center;gap:10px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 12px;">
+      <span style="font-size:18px;">${iconoMime(f.type)}</span>
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${f.name}">${f.name}</div>
+        <div style="font-size:11px;color:var(--muted);">${formatBytes(f.size)}</div>
+      </div>
+      <button onclick="quitarAdjunto(${i})" style="background:none;border:none;cursor:pointer;color:var(--danger);font-size:16px;padding:0 4px;" title="Quitar">✕</button>
+    </div>`).join('');
+}
+function quitarAdjunto(i) {
+  adjuntosSeleccionados.splice(i, 1);
+  renderAdjuntosSeleccionados();
+}
+
+// Carga y muestra adjuntos en la celda del historial
+async function cargarAdjuntosEnCelda(regId) {
+  const celda = document.getElementById(`adj-cell-${regId}`);
+  if (!celda) return;
+  try {
+    const res = await fetch(`/api/registros/${regId}/adjuntos`, { headers: { 'Authorization': 'Bearer ' + sesion.token } });
+    const adjs = await res.json();
+    if (!adjs.length) { celda.innerHTML = '<span style="color:var(--muted);font-size:12px;">—</span>'; return; }
+    celda.innerHTML = `<button class="btn btn-secondary btn-sm" onclick="abrirModalAdjuntos('${regId}')" style="font-size:11px;padding:3px 8px;">
+      📎 ${adjs.length}
+    </button>`;
+    celda.dataset.adjs = JSON.stringify(adjs);
+  } catch { celda.innerHTML = '<span style="color:var(--muted);font-size:12px;">—</span>'; }
+}
+
+// Modal para ver adjuntos de un registro existente
+function abrirModalAdjuntos(regId) {
+  const celda = document.getElementById(`adj-cell-${regId}`);
+  const adjs = celda?.dataset.adjs ? JSON.parse(celda.dataset.adjs) : [];
+  const puedeElim = sesion?.rol === 'admin' || sesion?.rol === 'rrhh';
+  const contenido = adjs.map(a => `
+    <div style="display:flex;align-items:center;gap:10px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 14px;margin-bottom:8px;">
+      <span style="font-size:20px;">${iconoMime(a.mime)}</span>
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${a.nombre}">${a.nombre}</div>
+        <div style="font-size:11px;color:var(--muted);">${formatBytes(a.tamano)} · ${new Date(a.subido).toLocaleString('es-CO')}</div>
+      </div>
+      <button onclick="descargarAdjuntoAuth('${a.id}','${a.nombre}')"
+        style="background:var(--accent);color:#fff;border:none;border-radius:7px;padding:5px 10px;font-size:12px;cursor:pointer;">
+        ⬇ Descargar
+      </button>
+      ${puedeElim ? `<button onclick="eliminarAdjunto('${a.id}','${regId}')" style="background:var(--danger);color:#fff;border:none;border-radius:7px;padding:5px 10px;font-size:12px;cursor:pointer;">🗑</button>` : ''}
+    </div>`).join('');
+  // Reutilizar el sistema de modal existente (confirmar) como contenedor informativo
+  const overlay = document.createElement('div');
+  overlay.id = 'adj-modal-overlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9000;display:flex;align-items:center;justify-content:center;';
+  overlay.innerHTML = `
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:28px;width:min(520px,92vw);max-height:80vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.5);">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;">
+        <h3 style="margin:0;font-size:16px;">📎 Archivos Adjuntos</h3>
+        <button onclick="document.getElementById('adj-modal-overlay').remove()" style="background:none;border:none;cursor:pointer;font-size:20px;color:var(--muted);">✕</button>
+      </div>
+      ${contenido}
+    </div>`;
+  document.body.appendChild(overlay);
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+}
+
+async function descargarAdjuntoAuth(adjId, nombre) {
+  try {
+    const res = await fetch(`/api/adjuntos/${adjId}/descargar`, {
+      headers: { 'Authorization': 'Bearer ' + sesion.token }
+    });
+    if (!res.ok) { showToast('No se pudo descargar el archivo.', 'error'); return; }
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = nombre;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 5000);
+  } catch(e) { showToast('Error al descargar: ' + e.message, 'error'); }
+}
+
+async function eliminarAdjunto(adjId, regId) {
+  if (!confirm('¿Eliminar este adjunto?')) return;
+  try {
+    const res = await fetch(`/api/adjuntos/${adjId}`, { method: 'DELETE', headers: { 'Authorization': 'Bearer ' + sesion.token } });
+    if (!res.ok) { const d = await res.json(); showToast(d.error || 'Error al eliminar', 'error'); return; }
+    document.getElementById('adj-modal-overlay')?.remove();
+    await cargarAdjuntosEnCelda(regId);
+    // Refrescar el botón del modal si hay más adjuntos
+    const celda = document.getElementById(`adj-cell-${regId}`);
+    if (celda?.dataset.adjs) {
+      const adjs = JSON.parse(celda.dataset.adjs).filter(a => a.id !== adjId);
+      celda.dataset.adjs = JSON.stringify(adjs);
+      if (adjs.length) abrirModalAdjuntos(regId);
+    }
+    showToast('Adjunto eliminado.');
+  } catch(e) { showToast(e.message, 'error'); }
 }
 
 // ═══════════════════════════════════════════════════
@@ -2216,9 +2389,13 @@ function renderHistorial() {
       <td>${r.aprobador}</td>
       <td style="font-size:12px;color:var(--muted);" title="${r.nombreCreador||r.creadoPor||''}"><span style="background:var(--surface2);padding:2px 7px;border-radius:5px;">${r.nombreCreador||r.creadoPor||'—'}</span></td>
       <td>${r.transporte>0 ? '<strong style="color:var(--success)">'+new Intl.NumberFormat('es-CO',{style:'currency',currency:'COP',maximumFractionDigits:0}).format(r.transporte)+'</strong>' : '—'}</td>
-      <td style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${r.observaciones||''}">${r.observaciones||'—'}</td>${acciones}
+      <td style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${r.observaciones||''}">${r.observaciones||'—'}</td>
+      <td id="adj-cell-${r.id}"><span style="color:var(--muted);font-size:12px;">…</span></td>
+      ${acciones}
     </tr>`;
   }).join('');
+  // Cargar adjuntos de cada registro visible de forma asíncrona
+  data.forEach(r => cargarAdjuntosEnCelda(r.id));
 }
 async function eliminarRegistro(id) {
   confirmar({

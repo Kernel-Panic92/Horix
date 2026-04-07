@@ -109,6 +109,41 @@ try { db.exec(`ALTER TABLE empleados  ADD COLUMN sede TEXT NOT NULL DEFAULT 'Pri
 try { db.exec(`ALTER TABLE usuarios   ADD COLUMN sede TEXT NOT NULL DEFAULT 'Principal'`); } catch {}
 try { db.exec(`ALTER TABLE usuarios   ADD COLUMN cambio_password INTEGER NOT NULL DEFAULT 0`); } catch {}
 
+// Tabla de adjuntos por registro
+db.exec(`
+  CREATE TABLE IF NOT EXISTS adjuntos (
+    id          TEXT PRIMARY KEY,
+    registroId  TEXT NOT NULL,
+    nombre      TEXT NOT NULL,
+    mime        TEXT NOT NULL,
+    tamano      INTEGER NOT NULL,
+    datos       BLOB NOT NULL,
+    subido      TEXT NOT NULL,
+    subidoPor   TEXT NOT NULL,
+    FOREIGN KEY (registroId) REFERENCES registros(id) ON DELETE CASCADE
+  );
+`);
+
+// Directorio de adjuntos (almacenado en BD como BLOB, sin archivos físicos)
+const ADJUNTOS_MAX_SIZE = 10 * 1024 * 1024; // 10 MB por archivo
+const ADJUNTOS_TIPOS_PERMITIDOS = [
+  'image/jpeg','image/png','image/gif','image/webp',
+  'application/pdf',
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/vnd.ms-excel',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'text/plain','text/csv'
+];
+const uploadAdjunto = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: ADJUNTOS_MAX_SIZE },
+  fileFilter: (req, file, cb) => {
+    if (ADJUNTOS_TIPOS_PERMITIDOS.includes(file.mimetype)) cb(null, true);
+    else cb(new Error('Tipo de archivo no permitido'));
+  }
+});
+
 // Configuración SMTP por defecto
 const smtpDefaults = {
   smtp_host:      '',
@@ -754,6 +789,8 @@ app.get('/api/registros', todosRoles, (req, res) => {
 
 app.post('/api/registros', adminRrhhOp, (req, res) => {
   const { empleadoId, nominaId, fecha, horas, tipo, concepto, aprobador, motivo, observaciones, transporte } = req.body;
+  const hoy = new Date().toISOString().split('T')[0];
+  if (fecha > hoy) return res.status(400).json({ error: 'La fecha no puede ser futura.' });
   const u = req.usuario;
   // Validar que el usuario tiene permiso sobre este empleado
   if (u.rol !== 'admin') {
@@ -1110,6 +1147,58 @@ app.delete('/api/logo', soloAdmin, (req, res) => {
     const p = LOGO_PATH + e;
     if (fs.existsSync(p)) fs.unlinkSync(p);
   });
+  res.json({ ok: true });
+});
+
+// ─────────────────────────────────────────────
+// ADJUNTOS
+// ─────────────────────────────────────────────
+
+// GET /api/registros/:id/adjuntos — lista adjuntos de un registro
+app.get('/api/registros/:id/adjuntos', todosRoles, (req, res) => {
+  const rows = db.prepare(
+    'SELECT id, nombre, mime, tamano, subido, subidoPor FROM adjuntos WHERE registroId = ? ORDER BY subido ASC'
+  ).all(req.params.id);
+  res.json(rows);
+});
+
+// POST /api/registros/:id/adjuntos — sube un adjunto (admin, rrhh, operador)
+app.post('/api/registros/:id/adjuntos', adminRrhhOp, (req, res, next) => {
+  uploadAdjunto.single('archivo')(req, res, (err) => {
+    if (err) return res.status(400).json({ error: err.message });
+    if (!req.file) return res.status(400).json({ error: 'No se recibió ningún archivo' });
+    const registro = db.prepare('SELECT id FROM registros WHERE id = ?').get(req.params.id);
+    if (!registro) return res.status(404).json({ error: 'Registro no encontrado' });
+    // Verificar que operador tiene acceso al registro
+    if (req.usuario.rol === 'operador') {
+      const reg = db.prepare('SELECT empleadoId FROM registros WHERE id = ?').get(req.params.id);
+      const asignados = db.prepare('SELECT empleadoId FROM usuario_empleados WHERE usuarioId = ?').all(req.usuario.id).map(r => r.empleadoId);
+      if (asignados.length > 0 && !asignados.includes(reg.empleadoId)) {
+        return res.status(403).json({ error: 'No tienes permiso sobre este registro.' });
+      }
+    }
+    const id = uid();
+    db.prepare(
+      'INSERT INTO adjuntos (id, registroId, nombre, mime, tamano, datos, subido, subidoPor) VALUES (?,?,?,?,?,?,?,?)'
+    ).run(id, req.params.id, req.file.originalname, req.file.mimetype, req.file.size, req.file.buffer, new Date().toISOString(), req.usuario.id);
+    res.json({ id, nombre: req.file.originalname, mime: req.file.mimetype, tamano: req.file.size });
+  });
+});
+
+// GET /api/adjuntos/:id/descargar — descarga un adjunto
+app.get('/api/adjuntos/:id/descargar', todosRoles, (req, res) => {
+  const adj = db.prepare('SELECT * FROM adjuntos WHERE id = ?').get(req.params.id);
+  if (!adj) return res.status(404).json({ error: 'Adjunto no encontrado' });
+  res.setHeader('Content-Type', adj.mime);
+  res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(adj.nombre)}"`);
+  res.send(adj.datos);
+});
+
+// DELETE /api/adjuntos/:id — elimina un adjunto (admin, rrhh)
+app.delete('/api/adjuntos/:id', adminRrhh, (req, res) => {
+  const adj = db.prepare('SELECT id FROM adjuntos WHERE id = ?').get(req.params.id);
+  if (!adj) return res.status(404).json({ error: 'Adjunto no encontrado' });
+  db.prepare('DELETE FROM adjuntos WHERE id = ?').run(req.params.id);
   res.json({ ok: true });
 });
 
