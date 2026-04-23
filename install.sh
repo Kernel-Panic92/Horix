@@ -62,15 +62,10 @@ SEDE_PRINCIPAL=${SEDE_PRINCIPAL:-"Principal"}
 
 echo ""
 
-# ── 5. Actualizar server.js con credenciales
-info "Configurando server.js..."
-cat > .env << ENVEOF
-HE_SECRET=$(openssl rand -hex 32)
-ENVEOF
-echo "  ✓ Archivo .env generado"
-echo "  ✓ Credenciales guardadas en .env"
-sed -i "s|const SEDES = \['Principal'\];|const SEDES = ['$SEDE_PRINCIPAL'];|g" server.js
-ok "server.js configurado"
+# ── 5. Configurar src/server.js con credenciales
+info "Configurando src/server.js..."
+# En el nuevo diseño, las sedes se manejan dinámicamente en la BD
+ok "src/server.js configurado"
 
 # ── 6. .backup_pass
 echo "configurar_pass_nas" > .backup_pass
@@ -119,7 +114,7 @@ fi
 
 # ── 9. PM2
 info "Iniciando con PM2..."
-if pm2 list | grep -q "horix"; then pm2 restart horix; else pm2 start server.js --name "horix"; fi
+if pm2 list | grep -q "horix"; then pm2 restart horix; else pm2 start src/server.js --name "horix"; fi
 pm2 save
 pm2 startup | tail -1 | bash 2>/dev/null || warn "Ejecuta manualmente: pm2 startup"
 ok "Aplicación en PM2"
