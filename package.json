@@ -2,10 +2,10 @@
   "name": "horix",
   "version": "2.3.2",
   "description": "Horix — Sistema de Control de Horas Extra",
-  "main": "server.js",
+  "main": "src/server.js",
   "scripts": {
-    "start": "node server.js",
-    "dev": "node server.js"
+    "start": "node src/server.js",
+    "dev": "node src/server.js"
   },
   "dependencies": {
     "adm-zip": "^0.5.10",

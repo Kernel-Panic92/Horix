@@ -90,15 +90,20 @@ sudo fail2ban-client set horix-login unbanip <IP>  # Desbloquear IP
 
 ```
 horix/
-├── server.js                       # Backend — Express + SQLite
+├── src/
+│   ├── server.js              # Backend — Express + SQLite
+│   ├── db/index.js           # Setup DB + migraciones
+│   ├── routes/              # Endpoints API
+│   ├── middleware/         # Auth, rate limiting
+│   ├── services/         # Mail, crypto
+│   └── utils/             # Helpers
 ├── public/
-│   ├── index.html                  # Frontend SPA
-│   └── reset-password.html         # Página de reset de contraseña
-├── install.sh                      # Instalador interactivo
-├── backup_horasextra_template.sh   # Plantilla de backup (el instalador genera el .sh real)
+│   ├── index.html               # Frontend SPA
+│   └── reset-password.html      # Página de reset de contraseña
+├── install.sh                   # Instalador interactivo
+├── update.sh                   # Actualizador
 ├── package.json
-├── update.sh                       # Script de actualizacion
-└── LICENSE
+└── .env.example               # Variables de entorno de ejemplo
 ```
 
 ## Seguridad

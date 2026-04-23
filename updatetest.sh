@@ -21,7 +21,7 @@ echo ""
 [[ "$OSTYPE" != "linux-gnu"* ]] && err "Solo Linux"
 command -v jq &>/dev/null || err "jq no instalado"
 command -v pm2 &>/dev/null || err "PM2 no encontrado"
-[[ ! -f "server.js" ]] && err "Ejecuta desde Horix"
+[[ ! -f "src/server.js" ]] && err "Ejecuta desde Horix"
 
 # ── Token ───────────────────────────────────────────────
 USER_HOME=$(eval echo ~${SUDO_USER:-$USER})

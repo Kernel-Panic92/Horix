@@ -19,7 +19,7 @@ echo ""
 
 [[ "$OSTYPE" != "linux-gnu"* ]] && err "Este script es para Linux (Ubuntu/Debian)."
 command -v pm2 &>/dev/null || err "PM2 no encontrado. ¿Está instalado Horix?"
-[[ ! -f "server.js" ]] && err "No se encontró server.js. Ejecuta desde el directorio de Horix."
+[[ ! -f "src/server.js" ]] && err "No se encontró src/server.js. Ejecuta desde el directorio de Horix."
 
 # ── Detectar rama ────────────
 if [[ -d ".git" ]]; then
