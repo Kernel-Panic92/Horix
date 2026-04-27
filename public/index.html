@@ -141,6 +141,7 @@
   .badge-mensual {background:rgba(247,212,79,0.15);color:var(--warning);}
   .badge-admin   {background:rgba(247,97,79,0.15);color:var(--danger);}
   .badge-rrhh    {background:rgba(79,142,247,0.15);color:var(--accent);}
+.badge-gerencia{background:rgba(247,148,79,0.15);color:var(--accent2);}
   .badge-consulta{background:rgba(79,190,150,0.15);color:var(--success);}
   .badge-operador{background:rgba(156,156,156,0.15);color:var(--success);}
 .badge-activo  {background:rgba(79,190,150,0.15);color:var(--success);}
@@ -1450,6 +1451,7 @@ async function desbloquearIP(ip) {
         <select id="usr-rol">
           <option value="operador">Operador — Ver su sede</option>
           <option value="consulta">Consulta — Solo lectura</option>
+          <option value="gerencia">Gerencia — Aprobar registros</option>
           <option value="rrhh">RRHH — Registrar y editar</option>
           <option value="admin">Admin — Acceso total</option>
         </select>
@@ -1556,7 +1558,7 @@ function showToast(msg, type='success') {
 }
 function setLoading(id, v) { const b=document.getElementById(id); if(b){b.disabled=v;} }
 function rolLabel(r) { return {admin:'Admin',rrhh:'RRHH',consulta:'Consulta',operador:'Operador'}[r]||r; }
-function puedoEditar() { return sesion?.rol === 'admin' || sesion?.rol === 'rrhh'; }
+function puedoEditar() { return sesion?.rol === 'admin' || sesion?.rol === 'rrhh' || sesion?.rol === 'gerencia'; }
 function puedeRegistrar() { return ['admin','rrhh','operador'].includes(sesion?.rol); }
 function soyAdmin()    { return sesion?.rol === 'admin'; }
 function soyOperador() { return sesion?.rol === 'operador'; }

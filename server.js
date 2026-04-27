@@ -299,7 +299,8 @@ function autenticar(rolesPermitidos = []) {
 const soloAdmin      = autenticar(['admin']);
 const adminRrhh      = autenticar(['admin', 'rrhh']);
 const adminRrhhOp    = autenticar(['admin', 'rrhh', 'operador']);
-const todosRoles     = autenticar(['admin', 'rrhh', 'consulta', 'operador']);
+const podeAprobar    = autenticar(['admin', 'gerencia']);
+const todosRoles     = autenticar(['admin', 'rrhh', 'consulta', 'operador', 'gerencia']);
 
 
 // ─────────────────────────────────────────────
@@ -572,7 +573,7 @@ app.post('/api/usuarios', soloAdmin, async (req, res) => {
   if (!nombre || !email || !password || !rol || !sede) return res.status(400).json({ error: 'Todos los campos son requeridos' });
   const errPass = validarPassword(password);
   if (errPass.length) return res.status(400).json({ error: 'Contraseña inválida: ' + errPass.join(', ') });
-  if (!['admin','rrhh','consulta','operador'].includes(rol)) return res.status(400).json({ error: 'Rol inválido' });
+  if (!['admin','rrhh','consulta','operador','gerencia'].includes(rol)) return res.status(400).json({ error: 'Rol inválido' });
   const centroValido = db.prepare('SELECT id FROM centros WHERE nombre=? AND activo=1').get(sede);
   if (!centroValido) return res.status(400).json({ error: 'Centro de operación inválido' });
   const existe = db.prepare('SELECT id FROM usuarios WHERE email = ?').get(email.toLowerCase().trim());
@@ -606,7 +607,7 @@ app.put('/api/usuario_empleados/:id', soloAdmin, (req, res) => {
 
 app.put('/api/usuarios/:id', soloAdmin, async (req, res) => {
   const { nombre, email, rol, sede, activo, password } = req.body;
-  if (!['admin','rrhh','consulta','operador'].includes(rol)) return res.status(400).json({ error: 'Rol inválido' });
+  if (!['admin','rrhh','consulta','operador','gerencia'].includes(rol)) return res.status(400).json({ error: 'Rol inválido' });
   const centroValido = db.prepare('SELECT id FROM centros WHERE nombre=? AND activo=1').get(sede);
   if (!centroValido) return res.status(400).json({ error: 'Centro de operación inválido' });
   if (req.params.id === req.usuario.id && activo === 0) return res.status(400).json({ error: 'No puedes desactivarte a ti mismo' });
@@ -824,7 +825,7 @@ app.delete('/api/registros/:id', adminRrhh, (req, res) => {
 });
 
 // POST /api/registros/:id/aprobar — aprobar o rechazar registro (solo admin/gerencia)
-app.post('/api/registros/:id/aprobar', soloAdmin, async (req, res) => {
+app.post('/api/registros/:id/aprobar', podeAprobar, async (req, res) => {
   const { aprobar, observaciones } = req.body;
   const estado = aprobar ? 'aprobado' : 'rechazado';
   
