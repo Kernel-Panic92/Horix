@@ -1822,21 +1822,7 @@ function poblarSelectAprobadores() {
   fa.innerHTML = '<option value="">Seleccionar...</option>';
   aprobadores.forEach(u => fa.innerHTML += `<option value="${u.nombre}">${u.nombre}</option>`);
 }
-function populateReportFilters() { /* dropdowns se cargan dinámicamente */ }
-
-// ═══════════════════════════════════════════════════
-// DASHBOARD
-// ═══════════════════════════════════════════════════
-// ── Toggle expandir/contraer gráfica ──────────────────────────
-// ── Widget resize ──────────────────────────────────────
-function setWidgetSize(widgetId, sizeClass, chartId) {
-  const widget = document.getElementById(widgetId);
-  const old = widget.className;
-  widget.classList.toggle(sizeClass, !old.includes(sizeClass));
-}
-
-function poblarSelectAprobadores() {
-  const fa = document.getElementById('reg-aprobador');
+function populateReportFilters() {
   if (!fa || !usuarios?.length) return;
   const aprobadores = usuarios.filter(u => u.rol === 'gerencia' || u.rol === 'admin');
   fa.innerHTML = '<option value="">Seleccionar...</option>';
