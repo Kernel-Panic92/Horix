@@ -836,7 +836,7 @@ app.post('/api/registros/:id/aprobar', soloAdmin, async (req, res) => {
     const reg = db.prepare('SELECT r.*, u.email as creadorEmail FROM registros r JOIN usuarios u ON r.creadoPor = u.id WHERE r.id = ?').get(req.params.id);
     if (reg?.creadorEmail) {
       const cfg = getConfig();
-      await enviarCorreo(reg.creadorEmail, `Tu hora extra fue ${estado === 'aprobado' ? '✅'aprobada' : '❌ rechazada'}`,
+      await enviarCorreo(reg.creadorEmail, `Tu hora extra fue ${estado === 'aprobado' ? 'aprobada' : 'rechazada'}`,
         `Hola,\n\nTu registro de hora extra ha sido ${estado === 'aprobado' ? 'aprobado' : 'rechazado'}:\n\nFecha: ${reg.fecha}\nHoras: ${reg.horas}\nTipo: ${reg.tipo}\n\n${observaciones ? 'Observaciones: ' + observaciones : ''}\n\nSaludos,\nHorix`
       );
     }
