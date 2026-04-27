@@ -141,15 +141,10 @@
   .badge-mensual {background:rgba(247,212,79,0.15);color:var(--warning);}
   .badge-admin   {background:rgba(247,97,79,0.15);color:var(--danger);}
   .badge-rrhh    {background:rgba(79,142,247,0.15);color:var(--accent);}
-.badge-gerencia{background:rgba(247,148,79,0.15);color:var(--accent2);}
   .badge-consulta{background:rgba(79,190,150,0.15);color:var(--success);}
   .badge-operador{background:rgba(156,156,156,0.15);color:var(--success);}
-.badge-activo  {background:rgba(79,190,150,0.15);color:var(--success);}
-.badge-inactivo{background:rgba(122,133,160,0.15);color:var(--muted);}
-.badge-yellow {background:rgba(247,212,79,0.15);color:var(--warning);}
-.badge-green {background:rgba(79,190,150,0.15);color:var(--success);}
-.badge-red   {background:rgba(247,97,79,0.15);color:var(--danger);}
-.badge-gray  {background:rgba(122,133,160,0.15);color:var(--muted);}
+  .badge-activo  {background:rgba(79,190,150,0.15);color:var(--success);}
+  .badge-inactivo{background:rgba(122,133,160,0.15);color:var(--muted);}
 
   /* ── BUTTONS ── */
   .btn{display:inline-flex;align-items:center;gap:7px;padding:9px 18px;border-radius:9px;font-family:var(--font-body);font-size:13.5px;font-weight:500;cursor:pointer;border:none;transition:all 0.18s;}
@@ -905,11 +900,7 @@ async function desbloquearIP(ip) {
             <input type="number" id="reg-transporte" placeholder="Ej: 15000" min="0" step="100"/>
             <small style="color:var(--muted);font-size:11px;margin-top:4px;display:block;">Ingresa el valor en pesos colombianos</small>
           </div>
-          <div class="form-group"><label>Aprobador / Supervisor *</label>
-          <select id="reg-aprobador">
-            <option value="">Seleccionar...</option>
-          </select>
-        </div>
+          <div class="form-group"><label>Aprobador / Supervisor *</label><input type="text" id="reg-aprobador" placeholder="Nombre del aprobador"/></div>
           <div class="form-group"><label>Concepto de Nómina *</label><input type="text" id="reg-concepto" placeholder="Código interno (Ej: HE-001)"/></div>
           <div class="form-group full"><label>Motivo / Descripción *</label><textarea id="reg-motivo" placeholder="Describe el motivo o actividad realizada..."></textarea></div>
           <div class="form-group full"><label>Observaciones</label><textarea id="reg-observaciones" placeholder="Observaciones adicionales (opcional)..." style="min-height:80px;"></textarea></div>
@@ -949,7 +940,7 @@ async function desbloquearIP(ip) {
         <button class="btn btn-secondary btn-sm" onclick="exportarCSV('historial')">📥 Exportar</button>
       </div>
       <div class="table-wrap table-scroll-mobile" style="overflow-x:auto;">
-        <table style="min-width:1400px;"><thead><tr><th>Empleado</th><th>Cargo</th><th>Sede</th><th>Fecha</th><th>Horas</th><th>Tipo</th><th>Período</th><th>Concepto</th><th>Motivo</th><th>Aprobador</th><th>Registrado por</th><th>Transporte</th><th>Observaciones</th><th>Estado</th><th>Adjuntos</th><th id="hist-th-acciones">Acciones</th></tr></thead>
+        <table style="min-width:1400px;"><thead><tr><th>Empleado</th><th>Cargo</th><th>Sede</th><th>Fecha</th><th>Horas</th><th>Tipo</th><th>Período</th><th>Concepto</th><th>Motivo</th><th>Aprobador</th><th>Registrado por</th><th>Transporte</th><th>Observaciones</th><th>Adjuntos</th><th id="hist-th-acciones">Acciones</th></tr></thead>
         <tbody id="hist-body"></tbody></table>
       </div>
     </div>
@@ -1455,7 +1446,6 @@ async function desbloquearIP(ip) {
         <select id="usr-rol">
           <option value="operador">Operador — Ver su sede</option>
           <option value="consulta">Consulta — Solo lectura</option>
-          <option value="gerencia">Gerencia — Aprobar registros</option>
           <option value="rrhh">RRHH — Registrar y editar</option>
           <option value="admin">Admin — Acceso total</option>
         </select>
@@ -1562,7 +1552,7 @@ function showToast(msg, type='success') {
 }
 function setLoading(id, v) { const b=document.getElementById(id); if(b){b.disabled=v;} }
 function rolLabel(r) { return {admin:'Admin',rrhh:'RRHH',consulta:'Consulta',operador:'Operador'}[r]||r; }
-function puedoEditar() { return sesion?.rol === 'admin' || sesion?.rol === 'rrhh' || sesion?.rol === 'gerencia'; }
+function puedoEditar() { return sesion?.rol === 'admin' || sesion?.rol === 'rrhh'; }
 function puedeRegistrar() { return ['admin','rrhh','operador'].includes(sesion?.rol); }
 function soyAdmin()    { return sesion?.rol === 'admin'; }
 function soyOperador() { return sesion?.rol === 'operador'; }
@@ -1632,9 +1622,6 @@ async function iniciarApp() {
   const badge = document.getElementById('ui-rol-badge');
   badge.textContent  = rolLabel(sesion.rol);
   badge.className    = `role-badge role-${sesion.rol}`;
-  
-  // Poblar select de aprobadores
-  poblarSelectAprobadores();
 
   // Permisos de navegación
   document.getElementById('nav-registro').classList.toggle('hidden', !puedoEditar() && !soyOperador());
@@ -1668,13 +1655,14 @@ fetch('/api/version').then(r => r.json()).then(d => {
 // ═══════════════════════════════════════════════════
 async function loadAll() {
   try {
-    const promesas = [GET('/api/empleados'), GET('/api/nominas'), GET('/api/registros'), GET('/api/centros'), GET('/api/usuarios')];
+    const promesas = [GET('/api/empleados'), GET('/api/nominas'), GET('/api/registros'), GET('/api/centros')];
+    if (soyAdmin()) promesas.push(GET('/api/usuarios'));
     const results = await Promise.all(promesas);
     empleados = results[0] || [];
     nominas   = results[1] || [];
     registros = results[2] || [];
     centros   = results[3] || [];
-    usuarios = results[4] || [];
+    if (soyAdmin()) usuarios = results[4] || [];
     poblarSelectsCentros();
   } catch { showToast('Error cargando datos.','error'); }
 }
@@ -1814,14 +1802,6 @@ function populateHistorialFilters() {
   empleados.forEach(e => fe.innerHTML+=`<option value="${e.id}">${e.nombre}</option>`);
   fn.value=cn; fe.value=ce;
 }
-
-function poblarSelectAprobadores() {
-  const fa = document.getElementById('reg-aprobador');
-  if (!fa || !usuarios?.length) return;
-  const aprobadores = usuarios.filter(u => u.rol === 'gerencia' || u.rol === 'admin');
-  fa.innerHTML = '<option value="">Seleccionar...</option>';
-  aprobadores.forEach(u => fa.innerHTML += `<option value="${u.nombre}">${u.nombre}</option>`);
-}
 function populateReportFilters() { /* dropdowns se cargan dinámicamente */ }
 
 // ═══════════════════════════════════════════════════
@@ -1831,15 +1811,24 @@ function populateReportFilters() { /* dropdowns se cargan dinámicamente */ }
 // ── Widget resize ──────────────────────────────────────
 function setWidgetSize(widgetId, sizeClass, chartId) {
   const widget = document.getElementById(widgetId);
-  const old = widget.className;
-  widget.classList.toggle(sizeClass, !old.includes(sizeClass));
-}
-function populateReportFilters() {
-  if (!fa || !usuarios?.length) return;
-  const aprobadores = usuarios.filter(u => u.rol === 'gerencia' || u.rol === 'admin');
-  fa.innerHTML = '<option value="">Seleccionar...</option>';
-  aprobadores.forEach(u => fa.innerHTML += `<option value="${u.nombre}">${u.nombre}</option>`);
-}
+  widget.classList.remove('w-small','w-medium','w-large');
+  widget.classList.add(sizeClass);
+  // Actualizar botones activos
+  widget.querySelectorAll('.widget-btn').forEach(b => b.classList.remove('active'));
+  const labels = { 'w-small':'Pequeño','w-medium':'Mediano','w-large':'Grande' };
+  widget.querySelectorAll('.widget-btn').forEach(b => {
+    if (b.title === labels[sizeClass]) b.classList.add('active');
+  });
+  // Redibujar chart — esperar a que el DOM aplique el nuevo tamaño
+  if (chartId && _charts[chartId]) {
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        const canvas = document.getElementById(chartId);
+        if (canvas) { canvas.style.width = ''; canvas.style.height = ''; }
+        try { _charts[chartId].resize(); } catch {}
+      });
+    });
+  }
   saveDashLayout();
 }
 
@@ -2387,7 +2376,7 @@ function renderHistorial() {
   tbody.innerHTML=data.map(r=>{
     const emp=empleados.find(e=>e.id===r.empleadoId);
     const nom=nominas.find(n=>n.id===r.nominaId);
-    const acciones = puedoEditar() ? `<td><div class="actions-cell">${getAccionesEstado(r)}<button class="btn btn-danger btn-sm" onclick="eliminarRegistro('${r.id}')">🗑</button></div></td>` : '<td style="display:none"></td>';
+    const acciones = puedoEditar() ? `<td><div class="actions-cell"><button class="btn btn-danger btn-sm" onclick="eliminarRegistro('${r.id}')">🗑</button></div></td>` : '<td style="display:none"></td>';
     const sedeBadge=r.sede||emp?.sede||'—';
     return `<tr>
       <td><strong>${emp?emp.nombre:'—'}</strong></td><td>${emp?emp.cargo:'—'}</td>
@@ -2401,7 +2390,6 @@ function renderHistorial() {
       <td style="font-size:12px;color:var(--muted);" title="${r.nombreCreador||r.creadoPor||''}"><span style="background:var(--surface2);padding:2px 7px;border-radius:5px;">${r.nombreCreador||r.creadoPor||'—'}</span></td>
       <td>${r.transporte>0 ? '<strong style="color:var(--success)">'+new Intl.NumberFormat('es-CO',{style:'currency',currency:'COP',maximumFractionDigits:0}).format(r.transporte)+'</strong>' : '—'}</td>
       <td style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${r.observaciones||''}">${r.observaciones||'—'}</td>
-      <td>${getEstadoBadge(r.estado)}</td>
       <td id="adj-cell-${r.id}"><span style="color:var(--muted);font-size:12px;">…</span></td>
       ${acciones}
     </tr>`;
@@ -3837,26 +3825,6 @@ async function confirmarImportarEmp() {
     resEl.style.display    = 'block';
   }
   setLoading('btn-confirmar-importar', false);
-}
-
-function getEstadoBadge(estado) {
-  const colores = { pendiente: 'yellow', aprobado: 'green', rechazado: 'red' };
-  return `<span class="badge badge-${colores[estado]||'gray'}">${estado||'pendiente'}</span>`;
-}
-function getAccionesEstado(r) {
-  if (sesion.rol !== 'admin') return '';
-  if (r.estado === 'pendiente') {
-    return `<button class="btn btn-sm" style="background:var(--success);color:#fff;margin:2px;" onclick="aprobarRegistro('${r.id}',true)">✓</button><button class="btn btn-sm" style="background:var(--danger);color:#fff;margin:2px;" onclick="aprobarRegistro('${r.id}',false)">✗</button>`;
-  }
-  return '';
-}
-async function aprobarRegistro(id, aprobar) {
-  try {
-    await POST('/api/registros/'+id+'/aprobar', { aprobar, observaciones: '' });
-    await loadAll();
-    renderHistorial();
-    showToast(aprobar ? '✅ Registro aprobado' : '❌ Registro rechazado');
-  } catch(e) { showToast(e.message,'error'); }
 }
 
 </script>
