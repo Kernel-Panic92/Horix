@@ -900,7 +900,11 @@ async function desbloquearIP(ip) {
             <input type="number" id="reg-transporte" placeholder="Ej: 15000" min="0" step="100"/>
             <small style="color:var(--muted);font-size:11px;margin-top:4px;display:block;">Ingresa el valor en pesos colombianos</small>
           </div>
-          <div class="form-group"><label>Aprobador / Supervisor *</label><input type="text" id="reg-aprobador" placeholder="Nombre del aprobador"/></div>
+          <div class="form-group"><label>Aprobador / Supervisor *</label>
+          <select id="reg-aprobador">
+            <option value="">Seleccionar...</option>
+          </select>
+        </div>
           <div class="form-group"><label>Concepto de Nómina *</label><input type="text" id="reg-concepto" placeholder="Código interno (Ej: HE-001)"/></div>
           <div class="form-group full"><label>Motivo / Descripción *</label><textarea id="reg-motivo" placeholder="Describe el motivo o actividad realizada..."></textarea></div>
           <div class="form-group full"><label>Observaciones</label><textarea id="reg-observaciones" placeholder="Observaciones adicionales (opcional)..." style="min-height:80px;"></textarea></div>
@@ -1551,11 +1555,11 @@ function showToast(msg, type='success') {
   setTimeout(() => t.className = 'toast', 3000);
 }
 function setLoading(id, v) { const b=document.getElementById(id); if(b){b.disabled=v;} }
-function rolLabel(r) { return {admin:'Admin',rrhh:'RRHH',consulta:'Consulta',operador:'Operador'}[r]||r; }
-function puedoEditar() { return sesion?.rol === 'admin' || sesion?.rol === 'rrhh'; }
+function rolLabel(r) { return {admin:'Admin',rrhh:'RRHH',consulta:'Consulta',operador:'Operador',gerencia:'Gerencia'}[r]||r; }
+function puedoEditar() { return sesion?.rol === 'admin' || sesion?.rol === 'rrhh' || sesion?.rol === 'gerencia'; }
 function puedeRegistrar() { return ['admin','rrhh','operador'].includes(sesion?.rol); }
 function soyAdmin()    { return sesion?.rol === 'admin'; }
-function soyOperador() { return sesion?.rol === 'operador'; }
+function soyGerencia() { return sesion?.rol === 'gerencia'; }
 function soyOperador() { return sesion?.rol === 'operador'; }
 
 // ═══════════════════════════════════════════════════
@@ -1622,6 +1626,9 @@ async function iniciarApp() {
   const badge = document.getElementById('ui-rol-badge');
   badge.textContent  = rolLabel(sesion.rol);
   badge.className    = `role-badge role-${sesion.rol}`;
+  
+  // Poblar select de aprobadores
+  poblarSelectAprobadores();
 
   // Permisos de navegación
   document.getElementById('nav-registro').classList.toggle('hidden', !puedoEditar() && !soyOperador());
@@ -1655,13 +1662,13 @@ fetch('/api/version').then(r => r.json()).then(d => {
 // ═══════════════════════════════════════════════════
 async function loadAll() {
   try {
-    const promesas = [GET('/api/empleados'), GET('/api/nominas'), GET('/api/registros'), GET('/api/centros')];
-    if (soyAdmin()) promesas.push(GET('/api/usuarios'));
+const promesas = [GET('/api/empleados'), GET('/api/nominas'), GET('/api/registros'), GET('/api/centros'), GET('/api/usuarios')];
     const results = await Promise.all(promesas);
     empleados = results[0] || [];
     nominas   = results[1] || [];
     registros = results[2] || [];
     centros   = results[3] || [];
+    usuarios = results[4] || [];
     if (soyAdmin()) usuarios = results[4] || [];
     poblarSelectsCentros();
   } catch { showToast('Error cargando datos.','error'); }
@@ -3825,6 +3832,14 @@ async function confirmarImportarEmp() {
     resEl.style.display    = 'block';
   }
   setLoading('btn-confirmar-importar', false);
+}
+
+function poblarSelectAprobadores() {
+  const fa = document.getElementById('reg-aprobador');
+  if (!fa || !usuarios?.length) return;
+  const apro = usuarios.filter(u => u.rol === 'gerencia' || u.rol === 'admin');
+  fa.innerHTML = '<option value="">Seleccionar...</option>';
+  apro.forEach(u => fa.innerHTML += `<option value="${u.nombre}">${u.nombre}</option>`);
 }
 
 </script>
