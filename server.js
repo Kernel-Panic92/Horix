@@ -82,7 +82,10 @@ db.exec(`
     concepto    TEXT NOT NULL DEFAULT '',
     observaciones TEXT NOT NULL DEFAULT '',
     transporte    REAL NOT NULL DEFAULT 0,
-    sede        TEXT NOT NULL DEFAULT 'Principal'
+    sede        TEXT NOT NULL DEFAULT 'Principal',
+    estado      TEXT NOT NULL DEFAULT 'pendiente',
+    aprobadoPor TEXT NOT NULL DEFAULT '',
+    fechaAprobado TEXT NOT NULL DEFAULT ''
   );
   CREATE TABLE IF NOT EXISTS usuario_empleados (
     usuarioId  TEXT NOT NULL,
@@ -105,6 +108,9 @@ try { db.exec(`ALTER TABLE registros  ADD COLUMN creadoPor TEXT NOT NULL DEFAULT
 try { db.exec(`ALTER TABLE registros  ADD COLUMN sede TEXT NOT NULL DEFAULT 'Principal'`); } catch {}
 try { db.exec(`ALTER TABLE registros  ADD COLUMN observaciones TEXT NOT NULL DEFAULT ''`); } catch {}
 try { db.exec(`ALTER TABLE registros  ADD COLUMN transporte REAL NOT NULL DEFAULT 0`); } catch {}
+try { db.exec(`ALTER TABLE registros  ADD COLUMN estado TEXT NOT NULL DEFAULT 'pendiente'`); } catch {}
+try { db.exec(`ALTER TABLE registros  ADD COLUMN aprobadoPor TEXT NOT NULL DEFAULT ''`); } catch {}
+try { db.exec(`ALTER TABLE registros  ADD COLUMN fechaAprobado TEXT NOT NULL DEFAULT ''`); } catch {}
 try { db.exec(`ALTER TABLE empleados  ADD COLUMN sede TEXT NOT NULL DEFAULT 'Principal'`); } catch {}
 try { db.exec(`ALTER TABLE usuarios   ADD COLUMN sede TEXT NOT NULL DEFAULT 'Principal'`); } catch {}
 try { db.exec(`ALTER TABLE usuarios   ADD COLUMN cambio_password INTEGER NOT NULL DEFAULT 0`); } catch {}
@@ -512,6 +518,11 @@ app.post('/api/configuracion/test', soloAdmin, async (req, res) => {
   }
 });
 
+// GET /api/version — versión del sistema
+app.get('/api/version', (req, res) => {
+  res.json({ version: '2.3.4', rama: 'main' });
+});
+
 // ─────────────────────────────────────────────
 // CENTROS DE OPERACIÓN
 // ─────────────────────────────────────────────
@@ -802,14 +813,36 @@ app.post('/api/registros', adminRrhhOp, (req, res) => {
   const emp = db.prepare('SELECT sede FROM empleados WHERE id = ?').get(empleadoId);
   const sede = emp ? emp.sede : 'Principal';
   const id = uid();
-  db.prepare('INSERT INTO registros (id,empleadoId,nominaId,fecha,horas,tipo,aprobador,motivo,creado,concepto,sede,creadoPor,observaciones,transporte) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)')
-    .run(id, empleadoId, nominaId, fecha, horas, tipo, aprobador, motivo, new Date().toISOString(), concepto||'', sede, req.usuario.id, observaciones||'', parseFloat(transporte||0));
+  db.prepare('INSERT INTO registros (id,empleadoId,nominaId,fecha,horas,tipo,aprobador,motivo,creado,concepto,sede,creadoPor,observaciones,transporte,estado) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)')
+    .run(id, empleadoId, nominaId, fecha, horas, tipo, aprobador, motivo, new Date().toISOString(), concepto||'', sede, req.usuario.id, observaciones||'', parseFloat(transporte||0), 'pendiente');
   res.json({ id });
 });
 
 app.delete('/api/registros/:id', adminRrhh, (req, res) => {
   db.prepare('DELETE FROM registros WHERE id=?').run(req.params.id);
   res.json({ ok: true });
+});
+
+// POST /api/registros/:id/aprobar — aprobar o rechazar registro (solo admin/gerencia)
+app.post('/api/registros/:id/aprobar', soloAdmin, async (req, res) => {
+  const { aprobar, observaciones } = req.body;
+  const estado = aprobar ? 'aprobado' : 'rechazado';
+  
+  db.prepare('UPDATE registros SET estado = ?, aprobadoPor = ?, fechaAprobado = ?, observaciones = COALESCE(?, observaciones) WHERE id = ?')
+    .run(estado, req.usuario.id, new Date().toISOString(), observaciones || '', req.params.id);
+  
+  // Notificar al usuario que creó el registro
+  try {
+    const reg = db.prepare('SELECT r.*, u.email as creadorEmail FROM registros r JOIN usuarios u ON r.creadoPor = u.id WHERE r.id = ?').get(req.params.id);
+    if (reg?.creadorEmail) {
+      const cfg = getConfig();
+      await enviarCorreo(reg.creadorEmail, `Tu hora extra fue ${estado === 'aprobado' ? '✅'aprobada' : '❌ rechazada'}`,
+        `Hola,\n\nTu registro de hora extra ha sido ${estado === 'aprobado' ? 'aprobado' : 'rechazado'}:\n\nFecha: ${reg.fecha}\nHoras: ${reg.horas}\nTipo: ${reg.tipo}\n\n${observaciones ? 'Observaciones: ' + observaciones : ''}\n\nSaludos,\nHorix`
+      );
+    }
+  } catch (e) { console.log('Error enviando notificación:', e.message); }
+  
+  res.json({ ok: true, estado });
 });
 
 // ─────────────────────────────────────────────
