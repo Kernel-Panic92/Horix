@@ -1816,6 +1816,12 @@ function populateHistorialFilters() {
 }
 
 function poblarSelectAprobadores() {
+  const fa = document.getElementById('reg-aprobador');
+  if (!fa || !usuarios?.length) return;
+  const aprobadores = usuarios.filter(u => u.rol === 'gerencia' || u.rol === 'admin');
+  fa.innerHTML = '<option value="">Seleccionar...</option>';
+  aprobadores.forEach(u => fa.innerHTML += `<option value="${u.nombre}">${u.nombre}</option>`);
+}
 function populateReportFilters() { /* dropdowns se cargan dinámicamente */ }
 
 // ═══════════════════════════════════════════════════
