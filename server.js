@@ -565,7 +565,7 @@ app.get('/api/sedes', todosRoles, (req, res) => {
 // ─────────────────────────────────────────────
 // USUARIOS
 // ─────────────────────────────────────────────
-app.get('/api/usuarios', soloAdmin, (req, res) =>
+app.get('/api/usuarios', podeAprobar, (req, res) =>
   res.json(db.prepare('SELECT id, nombre, email, rol, sede, activo, cambio_password, creado FROM usuarios ORDER BY creado DESC').all()));
 
 app.post('/api/usuarios', soloAdmin, async (req, res) => {
