@@ -900,6 +900,7 @@ db.prepare('INSERT INTO registros (id,empleadoId,nominaId,fecha,horas,tipo,aprob
     const emp = db.prepare('SELECT nombre FROM empleados WHERE id = ?').get(empleadoId);
     const nom = db.prepare('SELECT nombre FROM nominas WHERE id = ?').get(nominaId);
     if (gerentes.length && cfg.smtp_host) {
+      const enlace = `https://horixvitamar.fortiddns.com?registro=${id}`;
       const cuerpo = `📢 Nueva hora extra pendiente de aprobación\n\n` +
         `Empleado: ${emp?.nombre || '—'}\n` +
         `Fecha: ${fecha}\n` +
@@ -907,6 +908,7 @@ db.prepare('INSERT INTO registros (id,empleadoId,nominaId,fecha,horas,tipo,aprob
         `Tipo: ${tipo}\n` +
         `Aprobador: ${aprobador}\n` +
         `Motivo: ${motivo}\n\n` +
+        `Haz clic aquí para revisar y aprobar:\n${enlace}\n\n` +
         `https://horixvitamar.fortiddns.com`;
 
       gerentes.forEach(g => enviarCorreo(g.email, `🔔 Nueva hora extra pendiente - ${emp?.nombre || '—'}`, cuerpo));

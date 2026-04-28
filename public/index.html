@@ -949,7 +949,7 @@ async function desbloquearIP(ip) {
         <button class="btn btn-secondary btn-sm" onclick="exportarCSV('historial')">📥 Exportar</button>
       </div>
       <div class="table-wrap table-scroll-mobile" style="overflow-x:auto;">
-        <table style="min-width:1400px;"><thead><tr><th>Empleado</th><th>Cargo</th><th>Sede</th><th>Fecha</th><th>Horas</th><th>Tipo</th><th>Período</th><th>Concepto</th><th>Motivo</th><th>Aprobador</th><th>Estado</th><th>Registrado por</th><th>Transporte</th><th>Observaciones</th><th>Adjuntos</th><th id="hist-th-acciones">Acciones</th></tr></thead>
+        <table style="min-width:1400px;"><thead><tr><th>Empleado</th><th>Cargo</th><th>Sede</th><th>Fecha</th><th>Horas</th><th>Tipo</th><th>Período</th><th>Concepto</th><th>Motivo</th><th>Aprobador</th><th>Estado</th><th>Registrado por</th><th>Transporte</th><th>Observaciones</th><th>Adjuntos</th><th id="hist-th-aprobar">Aprobar/Rechazar</th><th id="hist-th-acciones">Acciones</th></tr></thead>
         <tbody id="hist-body"></tbody></table>
       </div>
     </div>
@@ -1563,6 +1563,7 @@ function showToast(msg, type='success') {
 function setLoading(id, v) { const b=document.getElementById(id); if(b){b.disabled=v;} }
 function rolLabel(r) { return {admin:'Admin',rrhh:'RRHH',consulta:'Consulta',operador:'Operador',gerencia:'Gerencia'}[r]||r; }
 function puedoEditar() { return sesion?.rol === 'admin' || sesion?.rol === 'rrhh' || sesion?.rol === 'gerencia'; }
+function puedoAprobar() { return sesion?.rol === 'admin' || sesion?.rol === 'gerencia'; }
 function puedeRegistrar() { return ['admin','rrhh','operador','gerencia'].includes(sesion?.rol); }
 function soyAdmin()    { return sesion?.rol === 'admin'; }
 function soyGerencia() { return sesion?.rol === 'gerencia'; }
@@ -1639,6 +1640,13 @@ async function iniciarApp() {
   // Luego poblar selects que dependen de datos
   poblarSelectsCentros();
   poblarSelectAprobadores();
+
+  // Verificar si hay un registro para resaltar desde la URL
+  const urlParams = new URLSearchParams(window.location.search);
+  const registroId = urlParams.get('registro');
+  if (registroId) {
+    setTimeout(() => resaltarRegistro(registroId), 500);
+  }
 
   // Permisos de navegación
   document.getElementById('nav-registro').classList.toggle('hidden', !puedoEditar() && !soyOperador());
@@ -2384,11 +2392,12 @@ function renderHistorial() {
   if(empId)  data=data.filter(r=>r.empleadoId===empId);
   if(sedeF)  data=data.filter(r=>(r.sede||empleados.find(e=>e.id===r.empleadoId)?.sede||'')=== sedeF);
 
-  // Ocultar columna acciones para consulta
+  // Ocultar columnas según permisos
   document.getElementById('hist-th-acciones').style.display = puedoEditar() ? '' : 'none';
+  document.getElementById('hist-th-aprobar').style.display = puedoAprobar() ? '' : 'none';
 
   const tbody=document.getElementById('hist-body');
-  if (!data.length) { tbody.innerHTML=`<tr><td colspan="10"><div class="empty"><div class="empty-icon">🔍</div><div class="empty-text">No se encontraron registros</div></div></td></tr>`; return; }
+  if (!data.length) { tbody.innerHTML=`<tr><td colspan="16"><div class="empty"><div class="empty-icon">🔍</div><div class="empty-text">No se encontraron registros</div></div></td></tr>`; return; }
   tbody.innerHTML=data.map(r=>{
     const emp=empleados.find(e=>e.id===r.empleadoId);
     const nom=nominas.find(n=>n.id===r.nominaId);
@@ -2409,6 +2418,7 @@ function renderHistorial() {
       <td>${r.transporte>0 ? '<strong style="color:var(--success)">'+new Intl.NumberFormat('es-CO',{style:'currency',currency:'COP',maximumFractionDigits:0}).format(r.transporte)+'</strong>' : '—'}</td>
       <td style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${r.observaciones||''}">${r.observaciones||'—'}</td>
       <td id="adj-cell-${r.id}"><span style="color:var(--muted);font-size:12px;">…</span></td>
+      <td>${r.estado==='pendiente' && puedoAprobar() ? `<div class="actions-cell"><button class="btn btn-success btn-sm" onclick="aprobarRegistro('${r.id}', true)">✓ Aprobar</button><button class="btn btn-danger btn-sm" onclick="aprobarRegistro('${r.id}', false)">✗ Rechazar</button></div>` : ''}</td>
       ${acciones}
     </tr>`;
   }).join('');
@@ -3850,6 +3860,55 @@ async function confirmarImportarEmp() {
     resEl.style.display    = 'block';
   }
   setLoading('btn-confirmar-importar', false);
+}
+
+async function aprobarRegistro(id, aprobar) {
+  if (!aprobar) {
+    // Pedir observaciones al rechazar
+    const obs = prompt('Motivo del rechazo (opcional):');
+    try {
+      await POST(`/api/registros/${id}/aprobar`, { aprobar: false, observaciones: obs || '' });
+      showToast('Registro rechazado.');
+      await loadAll();
+      renderHistorial();
+    } catch(e) { showToast(e.message, 'error'); }
+    return;
+  }
+  // Aprobar directo o con observaciones opcionales
+  const obs = prompt('Observaciones (opcional):');
+  try {
+    await POST(`/api/registros/${id}/aprobar`, { aprobar: true, observaciones: obs || '' });
+    showToast('Registro aprobado.');
+    await loadAll();
+    renderHistorial();
+  } catch(e) { showToast(e.message, 'error'); }
+}
+
+function resaltarRegistro(registroId) {
+  // Ir a la sección de historial
+  navigate('historial');
+  
+  // Buscar la fila del registro
+  setTimeout(() => {
+    const filas = document.querySelectorAll('#hist-body tr');
+    filas.forEach(fila => {
+      const id = fila.id;
+      if (fila.innerHTML.includes(registroId)) {
+        fila.style.backgroundColor = 'rgba(247,212,79,0.3)';
+        fila.style.borderLeft = '4px solid var(--warning)';
+        fila.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        
+        // Quitar el resaltado después de 5 segundos
+        setTimeout(() => {
+          fila.style.backgroundColor = '';
+          fila.style.borderLeft = '';
+        }, 5000);
+        
+        // Limpiar la URL
+        window.history.replaceState({}, document.title, window.location.pathname);
+      }
+    });
+  }, 300);
 }
 
 function poblarSelectAprobadores() {
