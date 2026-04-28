@@ -245,19 +245,36 @@ async function enviarCorreo(para, asunto, cuerpo, esHtml=false) {
   let htmlContenido = cuerpo;
   if (!esHtml) {
     const linhasHtml = cuerpo.replace(/\n/g, '<br/>');
-    htmlContenido = `<!DOCTYPE html><html><head><meta charset="UTF-8"/></head><body style="font-family:'Segoe UI',Arial,sans-serif;background:#f0f2f7;margin:0;padding:30px;">
-      <div style="max-width:580px;margin:0 auto;background:#ffffff;border-radius:16px;padding:40px;box-shadow:0 4px 20px rgba(0,0,0,0.08);">
-        <div style="text-align:center;margin-bottom:30px;padding-bottom:25px;border-bottom:1px solid #e8eaf0;">
-          <img src="https://horixvitamar.fortiddns.com/logo" alt="Horix" style="height:48px;max-width:200px;object-fit:contain;" onerror="this.style.display='none'"/>
-          <h1 style="color:#1a1d2e;margin:18px 0 0;font-size:26px;font-weight:700;">Horix</h1>
-        </div>
-        <div style="color:#3a3f52;line-height:1.7;font-size:15px;">${linhasHtml}</div>
-        <div style="margin-top:35px;padding-top:25px;border-top:1px solid #e8eaf0;text-align:center;font-size:13px;color:#7a85a0;">
-          Sistema de Control de Horas Extra<br/>
-          <a href="https://horixvitamar.fortiddns.com" style="color:#4f8ef7;text-decoration:none;font-weight:500;">horixvitamar.fortiddns.com</a>
-        </div>
-      </div>
-    </body></html>`;
+    htmlContenido = `<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<title>Horix</title>
+<style>
+  :root { --bg:#0d0f14; --surface:#161a23; --surface2:#1e2330; --border:#2a3045; --accent:#4f8ef7; --accent2:#f7944f; --success:#4fbe96; --text:#e8ecf5; --muted:#7a85a0; }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--text);font-family:'Segoe UI',Arial,sans-serif;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
+  .box{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:40px;width:420px;max-width:100%;}
+  .logo{font-size:20px;font-weight:700;margin-bottom:8px}
+  .logo span{color:var(--accent)}
+  .sub{color:var(--muted);font-size:13px;margin-bottom:28px}
+  .content{color:var(--muted);font-size:14px;line-height:1.7}
+  .content strong{color:var(--text)}
+  .footer{text-align:center;margin-top:35px;padding-top:20px;border-top:1px solid var(--border);font-size:12px;color:var(--muted)}
+  .footer a{color:var(--accent);text-decoration:none}
+</style>
+</head>
+<body>
+<div class="box">
+  <div class="logo">Horix <span>HE</span></div>
+  <div class="sub">Sistema de Control de Horas Extra</div>
+  <div class="content">${linhasHtml}</div>
+  <div class="footer">
+    <a href="https://horixvitamar.fortiddns.com">horixvitamar.fortiddns.com</a>
+  </div>
+</div>
+</body>
+</html>`;
   }
   
   await transporter.sendMail({
