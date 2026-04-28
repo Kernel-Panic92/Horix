@@ -244,9 +244,7 @@ async function enviarCorreo(para, asunto, cuerpo, esHtml=false) {
   
   let htmlContenido = cuerpo;
   if (!esHtml) {
-    // Convertir saltos de línea a HTML
-    const linhas = cuerpo.split('\n\n').map(p => `<p style="margin:0 0 15px;">${p.replace(/\n/g,'<br/>')}</p>`).join('');
-    const linhasHtml = corpo.replace(/\n/g, '<br/>');
+    const linhasHtml = cuerpo.replace(/\n/g, '<br/>');
     htmlContenido = `<!DOCTYPE html><html><head><meta charset="UTF-8"/></head><body style="font-family:'Segoe UI',Arial,sans-serif;background:#f0f2f7;margin:0;padding:30px;">
       <div style="max-width:580px;margin:0 auto;background:#ffffff;border-radius:16px;padding:40px;box-shadow:0 4px 20px rgba(0,0,0,0.08);">
         <div style="text-align:center;margin-bottom:30px;padding-bottom:25px;border-bottom:1px solid #e8eaf0;">
