@@ -891,6 +891,28 @@ app.post('/api/registros', adminRrhhOp, (req, res) => {
   const id = uid();
   db.prepare('INSERT INTO registros (id,empleadoId,nominaId,fecha,horas,tipo,aprobador,motivo,creado,concepto,sede,creadoPor,observaciones,transporte,estado) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)')
     .run(id, empleadoId, nominaId, fecha, horas, tipo, aprobador, motivo, new Date().toISOString(), concepto||'', sede, req.usuario.id, observaciones||'', parseFloat(transporte||0), 'pendiente');
+  
+  // Notificar a gerencia/admin de nuevo registro pendiente
+  try {
+    const cfg = getConfig();
+    const gerentes = db.prepare("SELECT email FROM usuarios WHERE rol IN ('gerencia','admin') AND activo = 1").all();
+    const emp = db.prepare('SELECT nombre FROM empleados WHERE id = ?').get(empleadoId);
+    const nom = db.prepare('SELECT nombre FROM nominas WHERE id = ?').get(nominaId);
+    if (gerentes.length && cfg.smtp_host) {
+      const cuerpo = `📢 Nueva hora extra pendiente de aprobación\n\n` +
+        `Empleado: ${emp?.nombre || '—'}\n` +
+        `Fecha: ${fecha}\n` +
+        `Horas: ${horas}\n` +
+        `Tipo: ${tipo}\n` +
+        `Aprobador: ${aprobador}\n` +
+        `Motivo: ${motivo}\n\n` +
+        `https://horixvitamar.fortiddns.com`;
+
+      const promesas = gerentes.map(g => enviarCorreo(g.email, `🔔 Nueva hora extra pendiente - ${emp?.nombre || '—'}`, cuerpo));
+      await Promise.all(promesas);
+    }
+  } catch (e) { console.log('Error notify gerencia:', e.message); }
+  
   res.json({ id });
 });
 
