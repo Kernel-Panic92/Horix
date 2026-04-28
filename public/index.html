@@ -1626,8 +1626,12 @@ async function iniciarApp() {
   const badge = document.getElementById('ui-rol-badge');
   badge.textContent  = rolLabel(sesion.rol);
   badge.className    = `role-badge role-${sesion.rol}`;
+
+  // Cargar datos primero
+  await loadAll();
   
-  // Poblar select de aprobadores
+  // Luego poblar selects que dependen de datos
+  poblarSelectsCentros();
   poblarSelectAprobadores();
 
   // Permisos de navegación
@@ -1663,14 +1667,12 @@ fetch('/api/version').then(r => r.json()).then(d => {
 async function loadAll() {
   try {
 const promesas = [GET('/api/empleados'), GET('/api/nominas'), GET('/api/registros'), GET('/api/centros'), GET('/api/usuarios')];
-    const results = await Promise.all(promesas);
+const results = await Promise.all(promesas);
     empleados = results[0] || [];
     nominas   = results[1] || [];
     registros = results[2] || [];
     centros   = results[3] || [];
     usuarios = results[4] || [];
-    if (soyAdmin()) usuarios = results[4] || [];
-    poblarSelectsCentros();
   } catch { showToast('Error cargando datos.','error'); }
 }
 
