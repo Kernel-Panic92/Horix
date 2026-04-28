@@ -799,7 +799,7 @@ async function desbloquearIP(ip) {
         <div class="stat-card"><div class="stat-label">Horas Este Año</div>        <div class="stat-value purple" id="dash-anio">—</div></div>
         <div class="stat-card"><div class="stat-label">Empleados con Horas Extra</div><div class="stat-value green"  id="dash-emp">—</div></div>
         <div class="stat-card"><div class="stat-label">Horas Pendientes</div>     <div class="stat-value yellow" id="dash-pendientes">—</div></div>
-        <div class="stat-card"><div class="stat-label">Horas Rechazadas</div>     <div class="stat-value red" id="dash-rechazadas">—</div></div>
+        <div class="stat-card"><div class="stat-label">Registros Rechazados</div>     <div class="stat-value red" id="dash-rechazados">—</div></div>
         <div class="stat-card"><div class="stat-label">Registros Aprobados</div>     <div class="stat-value yellow2" id="dash-registros">—</div></div>
       </div>
 
@@ -1995,14 +1995,14 @@ function renderDashboard() {
                           .reduce((s,r) => s + parseFloat(r.horas||0), 0);
   const emps   = new Set(aprobados.map(r => r.empleadoId)).size;
   const totalPendientes = registros.filter(r => r.estado === 'pendiente').reduce((s,r) => s + parseFloat(r.horas||0), 0);
-  const totalRechazados = registros.filter(r => r.estado === 'rechazado').reduce((s,r) => s + parseFloat(r.horas||0), 0);
+  const regsRechazados = registros.filter(r => r.estado === 'rechazado').length;
 
   document.getElementById('dash-total').textContent     = totalH.toFixed(1);
   document.getElementById('dash-mes').textContent       = mesH.toFixed(1);
   document.getElementById('dash-anio').textContent      = anioH.toFixed(1);
   document.getElementById('dash-emp').textContent       = emps;
   document.getElementById('dash-pendientes').textContent = totalPendientes.toFixed(1);
-  document.getElementById('dash-rechazadas').textContent = totalRechazados.toFixed(1);
+  document.getElementById('dash-rechazados').textContent = regsRechazados;
   document.getElementById('dash-registros').textContent = aprobados.length;
   document.getElementById('dash-sub').innerHTML       = `✓ Solo horas aprobadas<br><small style="color:var(--muted)">Actualizado · ${now.toLocaleDateString('es-CO',{weekday:'long',year:'numeric',month:'long',day:'numeric'})}</small>`;
 
