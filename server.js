@@ -908,8 +908,7 @@ app.post('/api/registros', adminRrhhOp, (req, res) => {
         `Motivo: ${motivo}\n\n` +
         `https://horixvitamar.fortiddns.com`;
 
-      const promesas = gerentes.map(g => enviarCorreo(g.email, `🔔 Nueva hora extra pendiente - ${emp?.nombre || '—'}`, cuerpo));
-      await Promise.all(promesas);
+      gerentes.forEach(g => enviarCorreo(g.email, `🔔 Nueva hora extra pendiente - ${emp?.nombre || '—'}`, cuerpo));
     }
   } catch (e) { console.log('Error notify gerencia:', e.message); }
   
