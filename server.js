@@ -231,7 +231,7 @@ function getAdminEmail() {
 function getBaseUrl(req) {
   return `${req.protocol}://${req.get('host')}`;
 }
-async function enviarCorreo(para, asunto, cuerpo) {
+async function enviarCorreo(para, asunto, cuerpo, esHtml=false) {
   const cfg = getConfig();
   const transporter = nodemailer.createTransport({
     host:       cfg.smtp_host,
@@ -241,7 +241,30 @@ async function enviarCorreo(para, asunto, cuerpo) {
     auth:       { user: cfg.smtp_usuario, pass: cfg.smtp_password },
     tls:        { rejectUnauthorized: false }
   });
-  await transporter.sendMail({ from: cfg.smtp_remitente, to: para, subject: asunto, text: cuerpo });
+  
+  let htmlContenido = cuerpo;
+  if (!esHtml) {
+    // Envolvemos en HTML simple
+    htmlContenido = `<!DOCTYPE html><html><head><meta charset="UTF-8"/></head><body style="font-family:'Segoe UI',Arial,sans-serif;background:#f5f5f5;margin:0;padding:20px;">
+      <div style="max-width:600px;margin:0 auto;background:#fff;border-radius:12px;padding:30px;box-shadow:0 2px 10px rgba(0,0,0,0.1);">
+        <div style="text-align:center;margin-bottom:25px;">
+          <img src="https://horixvitamar.fortiddns.com/logo" alt="Horix" style="height:50px;" onerror="this.style.display='none'"/>
+          <h1 style="color:#4f8ef7;margin:15px 0 0;font-size:24px;">Horix</h1>
+        </div>
+        <div style="color:#333;line-height:1.6;font-size:15px;white-space:pre-wrap;">${cuerpo.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div>
+        <div style="margin-top:30px;padding-top:20px;border-top:1px solid #eee;text-align:center;font-size:13px;color:#888;">
+          Sistema de Control de Horas Extra · <a href="https://horixvitamar.fortiddns.com" style="color:#4f8ef7;text-decoration:none;">horixvitamar.fortiddns.com</a>
+        </div>
+      </div>
+    </body></html>`;
+  }
+  
+  await transporter.sendMail({
+    from: cfg.smtp_remitente,
+    to: para,
+    subject: asunto,
+    html: htmlContenido
+  });
 }
 
 // Migrar smtp_password a AES si aún está en texto plano
