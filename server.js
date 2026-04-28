@@ -583,6 +583,18 @@ app.post('/api/usuarios', soloAdmin, async (req, res) => {
   db.prepare('INSERT INTO usuarios (id,nombre,email,password,rol,sede,activo,creado) VALUES (?,?,?,?,?,?,?,?)').run(
     id, nombre.trim(), email.toLowerCase().trim(), pwHash, rol, sede, 1, new Date().toISOString()
   );
+  
+  // Enviar correo de bienvenida
+  try {
+    const cfg = getConfig();
+    if (cfg.smtp_host) {
+      const rolTxt = {admin:'Admin',rrhh:'RRHH',gerencia:'Gerencia',consulta:'Consulta',operador:'Operador'}[rol]||rol;
+      await enviarCorreo(email, '👋 Bienvenido a Horix - Credenciales',
+        `Hola ${nombre},\n\nTu cuenta ha sido creada en Horix.\n\n📧 Correo: ${email}\n🔑 Rol: ${rolTxt}\n📍 Sede: ${sede}\n\nPor favor cambia tu contraseña en el primer acceso.\n\nIngresa en: https://horixvitamar.fortiddns.com\n\nSaludos,\nEquipo Horix`
+      );
+    }
+  } catch (e) { console.log('Error enviando correo:', e.message); }
+  
   res.json({ id });
 });
 
