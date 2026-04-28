@@ -242,37 +242,34 @@ async function enviarCorreo(para, asunto, cuerpo, esHtml=false) {
     tls:        { rejectUnauthorized: false }
   });
   
-  let htmlContenido = cuerpo;
+let htmlContenido = cuerpo;
   if (!esHtml) {
-    const linhasHtml = cuerpo.replace(/\n/g, '<br/>');
+    const linhasHtml = cuerpo.replace(/\n/g, '<br/><br/>');
     htmlContenido = `<!DOCTYPE html>
 <html lang="es">
 <head>
 <meta charset="UTF-8"/>
-<title>Horix</title>
-<style>
-  :root { --bg:#0d0f14; --surface:#161a23; --surface2:#1e2330; --border:#2a3045; --accent:#4f8ef7; --accent2:#f7944f; --success:#4fbe96; --text:#e8ecf5; --muted:#7a85a0; }
-  *{box-sizing:border-box;margin:0;padding:0}
-  body{background:var(--bg);color:var(--text);font-family:'Segoe UI',Arial,sans-serif;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
-  .box{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:40px;width:420px;max-width:100%;}
-  .logo{font-size:20px;font-weight:700;margin-bottom:8px}
-  .logo span{color:var(--accent)}
-  .sub{color:var(--muted);font-size:13px;margin-bottom:28px}
-  .content{color:var(--muted);font-size:14px;line-height:1.7}
-  .content strong{color:var(--text)}
-  .footer{text-align:center;margin-top:35px;padding-top:20px;border-top:1px solid var(--border);font-size:12px;color:var(--muted)}
-  .footer a{color:var(--accent);text-decoration:none}
-</style>
+<title>Horix - Horas Extra</title>
 </head>
-<body>
-<div class="box">
-  <div class="logo">Horix <span>HE</span></div>
-  <div class="sub">Sistema de Control de Horas Extra</div>
-  <div class="content">${linhasHtml}</div>
-  <div class="footer">
-    <a href="https://horixvitamar.fortiddns.com">horixvitamar.fortiddns.com</a>
-  </div>
+<body style="margin:0;padding:0;background-color:#0d0f14;font-family:Arial,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background-color:#0d0f14;min-height:100vh;">
+<tr>
+<td align="center" style="padding:30px;">
+<table width="600" cellpadding="0" cellspacing="0" style="background-color:#161a23;border-radius:16px;border:1px solid #2a3045;">
+<tr>
+<td align="center" style="padding:40px;">
+<h1 style="color:#4f8ef7;font-size:28px;margin:0 0 10px;">Horix</h1>
+<p style="color:#7a85a0;font-size:14px;margin:0 0 30px;">Sistema de Control de Horas Extra</p>
+<div style="color:#e8ecf5;font-size:15px;line-height:1.7;text-align:left;">${linhasHtml}</div>
+<div style="margin-top:30px;padding-top:20px;border-top:1px solid #2a3045;text-align:center;">
+<a href="https://horixvitamar.fortiddns.com" style="color:#4f8ef7;text-decoration:none;font-size:13px;">horixvitamar.fortiddns.com</a>
 </div>
+</td>
+</tr>
+</table>
+</td>
+</tr>
+</table>
 </body>
 </html>`;
   }
