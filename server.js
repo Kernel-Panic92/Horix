@@ -890,8 +890,8 @@ app.post('/api/registros', adminRrhhOp, (req, res) => {
   const emp = db.prepare('SELECT sede FROM empleados WHERE id = ?').get(empleadoId);
   const sede = emp ? emp.sede : 'Principal';
   const id = uid();
-  db.prepare('INSERT INTO registros (id,empleadoId,nominaId,fecha,horas,tipo,aprobador,motivo,creado,concepto,observaciones,transporte,sede,creadoPor,estado,aprobadoPor,fechaAprobado) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)')
-    .run(id, empleadoId, nominaId, fecha, horas, tipo, aprobador, motivo, new Date().toISOString(), concepto||'', observaciones||'', parseFloat(transporte||0), sede, req.usuario.id, 'pendiente', '', '');
+db.prepare('INSERT INTO registros (id,empleadoId,nominaId,fecha,horas,tipo,aprobador,motivo,creado,concepto,observaciones,transporte,sede,creadoPor,estado,aprobadoPor,fechaAprobado) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)')
+     .run(id, empleadoId, nominaId, fecha, horas, tipo, aprobador, motivo, new Date().toISOString(), concepto||'', observaciones||'', parseFloat(transporte||0), sede, req.usuario.id, 'pendiente', '', '');
   
   // Notificar a gerencia/admin de nuevo registro pendiente
   try {
