@@ -250,18 +250,25 @@ let htmlContenido = cuerpo;
 <head>
 <meta charset="UTF-8"/>
 <title>Horix - Horas Extra</title>
+<style>
+@media only screen and (max-width: 620px) {
+  .email-container { width: 100% !important; padding: 20px 15px !important; }
+  .email-content { font-size: 15px !important; }
+  .email-title { font-size: 24px !important; }
+}
+</style>
 </head>
-<body style="margin:0;padding:0;background-color:#0d0f14;font-family:Arial,sans-serif;">
+<body style="margin:0;padding:0;background-color:#0d0f14;font-family:Arial,Helvetica,sans-serif;">
 <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#0d0f14;min-height:100vh;">
 <tr>
-<td align="center" style="padding:30px;">
-<table width="600" cellpadding="0" cellspacing="0" style="background-color:#161a23;border-radius:16px;border:1px solid #2a3045;">
+<td align="center" style="padding:20px 10px;">
+<table class="email-container" width="600" cellpadding="0" cellspacing="0" style="background-color:#161a23;border-radius:12px;border:1px solid #2a3045;max-width:100%;" style="width:600px;">
 <tr>
-<td align="center" style="padding:40px;">
-<h1 style="color:#4f8ef7;font-size:28px;margin:0 0 10px;">Horix</h1>
-<p style="color:#7a85a0;font-size:14px;margin:0 0 30px;">Sistema de Control de Horas Extra</p>
-<div style="color:#e8ecf5;font-size:15px;line-height:1.7;text-align:left;">${linhasHtml}</div>
-<div style="margin-top:30px;padding-top:20px;border-top:1px solid #2a3045;text-align:center;">
+<td align="center" class="email-content" style="padding:30px 25px;color:#e8ecf5;font-size:15px;line-height:1.7;text-align:left;">
+<h1 class="email-title" style="color:#4f8ef7;font-size:28px;margin:0 0 8px;font-weight:bold;">Horix</h1>
+<p style="color:#7a85a0;font-size:13px;margin:0 0 25px;">Sistema de Control de Horas Extra</p>
+<div>${linhasHtml}</div>
+<div style="margin-top:25px;padding-top:18px;border-top:1px solid #2a3045;text-align:center;">
 <a href="https://horixvitamar.fortiddns.com" style="color:#4f8ef7;text-decoration:none;font-size:13px;">horixvitamar.fortiddns.com</a>
 </div>
 </td>
