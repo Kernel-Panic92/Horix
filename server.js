@@ -244,16 +244,19 @@ async function enviarCorreo(para, asunto, cuerpo, esHtml=false) {
   
   let htmlContenido = cuerpo;
   if (!esHtml) {
-    // Envolvemos en HTML simple
-    htmlContenido = `<!DOCTYPE html><html><head><meta charset="UTF-8"/></head><body style="font-family:'Segoe UI',Arial,sans-serif;background:#f5f5f5;margin:0;padding:20px;">
-      <div style="max-width:600px;margin:0 auto;background:#fff;border-radius:12px;padding:30px;box-shadow:0 2px 10px rgba(0,0,0,0.1);">
-        <div style="text-align:center;margin-bottom:25px;">
-          <img src="https://horixvitamar.fortiddns.com/logo" alt="Horix" style="height:50px;" onerror="this.style.display='none'"/>
-          <h1 style="color:#4f8ef7;margin:15px 0 0;font-size:24px;">Horix</h1>
+    // Convertir saltos de línea a HTML
+    const linhas = cuerpo.split('\n\n').map(p => `<p style="margin:0 0 15px;">${p.replace(/\n/g,'<br/>')}</p>`).join('');
+    const linhasHtml = corpo.replace(/\n/g, '<br/>');
+    htmlContenido = `<!DOCTYPE html><html><head><meta charset="UTF-8"/></head><body style="font-family:'Segoe UI',Arial,sans-serif;background:#f0f2f7;margin:0;padding:30px;">
+      <div style="max-width:580px;margin:0 auto;background:#ffffff;border-radius:16px;padding:40px;box-shadow:0 4px 20px rgba(0,0,0,0.08);">
+        <div style="text-align:center;margin-bottom:30px;padding-bottom:25px;border-bottom:1px solid #e8eaf0;">
+          <img src="https://horixvitamar.fortiddns.com/logo" alt="Horix" style="height:48px;max-width:200px;object-fit:contain;" onerror="this.style.display='none'"/>
+          <h1 style="color:#1a1d2e;margin:18px 0 0;font-size:26px;font-weight:700;">Horix</h1>
         </div>
-        <div style="color:#333;line-height:1.6;font-size:15px;white-space:pre-wrap;">${cuerpo.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div>
-        <div style="margin-top:30px;padding-top:20px;border-top:1px solid #eee;text-align:center;font-size:13px;color:#888;">
-          Sistema de Control de Horas Extra · <a href="https://horixvitamar.fortiddns.com" style="color:#4f8ef7;text-decoration:none;">horixvitamar.fortiddns.com</a>
+        <div style="color:#3a3f52;line-height:1.7;font-size:15px;">${linhasHtml}</div>
+        <div style="margin-top:35px;padding-top:25px;border-top:1px solid #e8eaf0;text-align:center;font-size:13px;color:#7a85a0;">
+          Sistema de Control de Horas Extra<br/>
+          <a href="https://horixvitamar.fortiddns.com" style="color:#4f8ef7;text-decoration:none;font-weight:500;">horixvitamar.fortiddns.com</a>
         </div>
       </div>
     </body></html>`;
