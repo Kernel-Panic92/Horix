@@ -1559,7 +1559,7 @@ function showToast(msg, type='success') {
 function setLoading(id, v) { const b=document.getElementById(id); if(b){b.disabled=v;} }
 function rolLabel(r) { return {admin:'Admin',rrhh:'RRHH',consulta:'Consulta',operador:'Operador',gerencia:'Gerencia'}[r]||r; }
 function puedoEditar() { return sesion?.rol === 'admin' || sesion?.rol === 'rrhh' || sesion?.rol === 'gerencia'; }
-function puedeRegistrar() { return ['admin','rrhh','operador'].includes(sesion?.rol); }
+function puedeRegistrar() { return ['admin','rrhh','operador','gerencia'].includes(sesion?.rol); }
 function soyAdmin()    { return sesion?.rol === 'admin'; }
 function soyGerencia() { return sesion?.rol === 'gerencia'; }
 function soyOperador() { return sesion?.rol === 'operador'; }
@@ -3848,7 +3848,7 @@ async function confirmarImportarEmp() {
 function poblarSelectAprobadores() {
   const fa = document.getElementById('reg-aprobador');
   if (!fa || !usuarios?.length) return;
-  const apro = usuarios.filter(u => u.rol === 'gerencia' || u.rol === 'admin');
+  const apro = usuarios.filter(u => u.rol === 'gerencia');
   fa.innerHTML = '<option value="">Seleccionar...</option>';
   apro.forEach(u => fa.innerHTML += `<option value="${u.nombre}">${u.nombre}</option>`);
 }
