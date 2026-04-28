@@ -617,6 +617,24 @@ app.put('/api/usuario_empleados/:id', soloAdmin, (req, res) => {
   res.json({ ok: true });
 });
 
+app.post('/api/usuarios/:id/reset-password', soloAdmin, async (req, res) => {
+  const usuario = db.prepare('SELECT * FROM usuarios WHERE id = ? AND activo = 1').get(req.params.id);
+  if (!usuario) return res.status(404).json({ error: 'Usuario no encontrado' });
+  db.prepare('DELETE FROM tokens_reset WHERE usuarioId = ?').run(usuario.id);
+  const token  = generateToken();
+  const expira = new Date(Date.now() + 30 * 60 * 1000).toISOString();
+  db.prepare('INSERT INTO tokens_reset VALUES (?,?,?)').run(token, usuario.id, expira);
+  const cfg    = getConfig();
+  const enlace = `${getBaseUrl(req)}/reset-password.html?token=${token}`;
+  const cuerpo = `Hola ${usuario.nombre},\n\nUn administrador ha solicitado el restablecimiento de tu contraseña.\n\nPara crear una nueva contraseña, haz clic en el siguiente enlace:\n\n${enlace}\n\nEste enlace expira en 30 minutos.\n\nSi no solicitaste esto, ignora este correo.\n\n\nSaludos,\nEquipo Horix`;
+  try {
+    await enviarCorreo(usuario.email, '🔐 Restablecer contraseña - Horix', cuerpo);
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: 'No se pudo enviar el correo.' });
+  }
+});
+
 app.put('/api/usuarios/:id', soloAdmin, async (req, res) => {
   const { nombre, email, rol, sede, activo, password } = req.body;
   if (!['admin','rrhh','consulta','operador','gerencia'].includes(rol)) return res.status(400).json({ error: 'Rol inválido' });

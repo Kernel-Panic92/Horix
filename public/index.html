@@ -2900,6 +2900,7 @@ function renderUsuarios() {
     <td>${fmtDate(u.creado)}</td>
     <td><div class="actions-cell">
       <button class="btn btn-secondary btn-sm" onclick="editarUsuario('${u.id}')">✏ Editar</button>
+      <button class="btn btn-secondary btn-sm" onclick="enviarResetPassword('${u.id}')">🔑 Reset</button>
       ${u.id!==sesion.id?`<button class="btn btn-danger btn-sm" onclick="eliminarUsuario('${u.id}')">🗑</button>`:''}
     </div></td>
   </tr>`).join('');
@@ -3028,6 +3029,12 @@ async function eliminarUsuario(id) {
       catch(e) { showToast(e.message,'error'); }
     }
   });
+}
+async function enviarResetPassword(id) {
+  try {
+    await POST('/api/usuarios/'+id+'/reset-password', {});
+    showToast('Correo de recuperación enviado.');
+  } catch(e) { showToast(e.message,'error'); }
 }
 
 // ═══════════════════════════════════════════════════
