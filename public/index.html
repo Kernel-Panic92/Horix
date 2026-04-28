@@ -119,7 +119,8 @@
   .stat-label{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:8px;}
   .stat-value{font-family:var(--font-body);font-size:28px;font-weight:700;letter-spacing:0;line-height:1.1;}
   .stat-value.blue{color:var(--accent);}.stat-value.orange{color:var(--accent2);}
-  .stat-value.green{color:var(--success);}.stat-value.yellow{color:var(--warning);}
+  .stat-value.green{color:var(--success);}  .stat-value.yellow{color:var(--warning);}
+  .stat-value.yellow2{color:var(--warning);}
 
   /* ── TABLE ── */
   .table-wrap{background:var(--surface);border:1px solid var(--border);border-radius:16px;overflow:hidden;}
@@ -793,11 +794,13 @@ async function desbloquearIP(ip) {
         <div class="page-sub" id="dash-sub">Resumen general</div>
       </div>
       <div class="stats-row">
-        <div class="stat-card"><div class="stat-label">Total Horas Registradas</div><div class="stat-value blue"   id="dash-total">—</div></div>
+        <div class="stat-card"><div class="stat-label">Total Horas Aprobadas</div><div class="stat-value blue"   id="dash-total">—</div></div>
         <div class="stat-card"><div class="stat-label">Horas Este Mes</div>        <div class="stat-value orange" id="dash-mes">—</div></div>
         <div class="stat-card"><div class="stat-label">Horas Este Año</div>        <div class="stat-value purple" id="dash-anio">—</div></div>
         <div class="stat-card"><div class="stat-label">Empleados con Horas Extra</div><div class="stat-value green"  id="dash-emp">—</div></div>
-        <div class="stat-card"><div class="stat-label">Registros Totales</div>     <div class="stat-value yellow" id="dash-registros">—</div></div>
+        <div class="stat-card"><div class="stat-label">Horas Pendientes</div>     <div class="stat-value yellow" id="dash-pendientes">—</div></div>
+        <div class="stat-card"><div class="stat-label">Horas Rechazadas</div>     <div class="stat-value red" id="dash-rechazadas">—</div></div>
+        <div class="stat-card"><div class="stat-label">Registros Aprobados</div>     <div class="stat-value yellow2" id="dash-registros">—</div></div>
       </div>
 
       <!-- GRÁFICAS WIDGETS -->
@@ -1981,24 +1984,31 @@ function renderDashboard() {
   const mes  = now.getMonth();
   const anio = now.getFullYear();
 
-  // ── Métricas
-  const totalH = registros.reduce((s,r) => s + parseFloat(r.horas||0), 0);
-  const mesH   = registros.filter(r => { const d=new Date(r.fecha); return d.getMonth()===mes && d.getFullYear()===anio; })
-                           .reduce((s,r) => s + parseFloat(r.horas||0), 0);
-  const anioH  = registros.filter(r => new Date(r.fecha).getFullYear()===anio)
-                           .reduce((s,r) => s + parseFloat(r.horas||0), 0);
-  const emps   = new Set(registros.map(r => r.empleadoId)).size;
+  // Filtrar solo registros aprobados
+  const aprobados = registros.filter(r => r.estado === 'aprobado');
+
+  // ── Métricas (solo aprobadas)
+  const totalH = aprobados.reduce((s,r) => s + parseFloat(r.horas||0), 0);
+  const mesH   = aprobados.filter(r => { const d=new Date(r.fecha); return d.getMonth()===mes && d.getFullYear()===anio; })
+                          .reduce((s,r) => s + parseFloat(r.horas||0), 0);
+  const anioH  = aprobados.filter(r => new Date(r.fecha).getFullYear()===anio)
+                          .reduce((s,r) => s + parseFloat(r.horas||0), 0);
+  const emps   = new Set(aprobados.map(r => r.empleadoId)).size;
+  const totalPendientes = registros.filter(r => r.estado === 'pendiente').reduce((s,r) => s + parseFloat(r.horas||0), 0);
+  const totalRechazados = registros.filter(r => r.estado === 'rechazado').reduce((s,r) => s + parseFloat(r.horas||0), 0);
 
   document.getElementById('dash-total').textContent     = totalH.toFixed(1);
   document.getElementById('dash-mes').textContent       = mesH.toFixed(1);
   document.getElementById('dash-anio').textContent      = anioH.toFixed(1);
   document.getElementById('dash-emp').textContent       = emps;
-  document.getElementById('dash-registros').textContent = registros.length;
-  document.getElementById('dash-sub').textContent       = `Actualizado · ${now.toLocaleDateString('es-CO',{weekday:'long',year:'numeric',month:'long',day:'numeric'})}`;
+  document.getElementById('dash-pendientes').textContent = totalPendientes.toFixed(1);
+  document.getElementById('dash-rechazadas').textContent = totalRechazados.toFixed(1);
+  document.getElementById('dash-registros').textContent = aprobados.length;
+  document.getElementById('dash-sub').innerHTML       = `✓ Solo horas aprobadas<br><small style="color:var(--muted)">Actualizado · ${now.toLocaleDateString('es-CO',{weekday:'long',year:'numeric',month:'long',day:'numeric'})}</small>`;
 
-  // ── Período con más horas del año
+  // ── Período con más horas del año (solo aprobadas)
   (function() {
-    const anioRegs = registros.filter(r => new Date(r.fecha).getFullYear() === anio);
+    const anioRegs = aprobados.filter(r => new Date(r.fecha).getFullYear() === anio);
     const porNomina = {};
     anioRegs.forEach(r => {
       if (!r.nominaId) return;
@@ -2042,10 +2052,10 @@ container.innerHTML = `
   const gridColor = 'rgba(255,255,255,0.06)';
   const baseOpts  = { responsive:true, maintainAspectRatio:false, plugins:{ legend:{ labels:{ color:C.text, font:{size:14} } } } };
 
-  // ── 1. Horas por mes (barras)
+  // ── 1. Horas por mes (barras) - solo aprobadas
   const meses = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
   const horasMes = Array(12).fill(0);
-  registros.filter(r => new Date(r.fecha).getFullYear()===anio)
+  aprobados.filter(r => new Date(r.fecha).getFullYear()===anio)
            .forEach(r => { horasMes[new Date(r.fecha).getMonth()] += parseFloat(r.horas||0); });
   crearOActualizar('chart-mes', {
     type: 'bar',
@@ -2062,9 +2072,9 @@ container.innerHTML = `
     }}
   });
 
-  // ── 2. Distribución por tipo (dona)
+  // ── 2. Distribución por tipo (dona) - solo aprobadas
   const tipos = { diurna:0, nocturna:0, festivo:0 };
-  registros.forEach(r => { if(tipos[r.tipo]!==undefined) tipos[r.tipo]+=parseFloat(r.horas||0); });
+  aprobados.forEach(r => { if(tipos[r.tipo]!==undefined) tipos[r.tipo]+=parseFloat(r.horas||0); });
   crearOActualizar('chart-tipo', {
     type: 'doughnut',
     data: {
@@ -2079,9 +2089,9 @@ container.innerHTML = `
     }
   });
 
-  // ── 3. Horas por sede (barras horizontales)
+  // ── 3. Horas por sede (barras horizontales) - solo aprobadas
   const sedesMap = {};
-  registros.forEach(r => {
+  aprobados.forEach(r => {
     const emp  = empleados.find(e => e.id===r.empleadoId);
     const sede = r.sede || emp?.sede || '';
     if (sede) sedesMap[sede] = (sedesMap[sede]||0) + parseFloat(r.horas||0);
