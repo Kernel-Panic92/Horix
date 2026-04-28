@@ -876,6 +876,7 @@ app.get('/api/registros', todosRoles, (req, res) => {
 
 app.post('/api/registros', adminRrhhOp, (req, res) => {
   const { empleadoId, nominaId, fecha, horas, tipo, concepto, aprobador, motivo, observaciones, transporte } = req.body;
+  console.log('DEBUG req.body:', req.body);
   const hoy = new Date().toISOString().split('T')[0];
   if (fecha > hoy) return res.status(400).json({ error: 'La fecha no puede ser futura.' });
   const u = req.usuario;
