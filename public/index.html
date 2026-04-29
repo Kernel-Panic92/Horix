@@ -3100,11 +3100,14 @@ function exportarCSV(modo) {
     if(empId)  data=data.filter(r=>r.empleadoId===empId);
   }
   if (!data.length) { showToast('No hay datos para exportar.','error'); return; }
-  const headers=['Empleado','Cédula','Cargo','Departamento','Período Nómina','Fecha','Horas','Tipo','Concepto','Aprobador','Motivo','Observaciones','Transporte COP','Registrado por'];
+  const headers=['Empleado','Cédula','Cargo','Departamento','Período Nómina','Fecha','Horas','Tipo','Concepto','Estado','Aprobador/Rechazado por','Motivo de rechazo','Observaciones','Transporte COP','Registrado por'];
   const rows=data.map(r=>{
     const emp=empleados.find(e=>e.id===r.empleadoId)||{};
     const nom=nominas.find(n=>n.id===r.nominaId)||{};
-    return [emp.nombre||'',emp.cedula||'',emp.cargo||'',emp.departamento||'',nom.nombre||'',r.fecha||'',r.horas||'',r.tipo||'',r.concepto||'',r.aprobador||'',r.motivo||'',r.observaciones||'',r.transporte||0,r.nombreCreador||r.creadoPor||''];
+    const estado=r.estado==='rechazado' ? 'Rechazado' : r.estado==='aprobado' ? 'Aprobado' : 'Pendiente';
+    const aprobador = r.estado==='rechazado' || r.estado==='aprobado' ? r.aprobadoPor||r.aprobador||'' : '';
+    return [emp.nombre||'',emp.cedula||'',emp.cargo||'',emp.departamento||'',nom.nombre||'',r.fecha||'',r.horas||'',r.tipo||'',r.concepto||'',estado,aprobador,r.estado==='rechazado'?r.motivo||'':'',r.observaciones||'',r.transporte||0,r.nombreCreador||r.creadoPor||''];
+  });
   });
   const csv=[headers,...rows].map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
   const blob=new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8;'});
