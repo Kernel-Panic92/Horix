@@ -4033,7 +4033,7 @@ function verDetalleRegistro(id) {
     cont.innerHTML = files.map(f =>
       `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border);">
         <span>📎</span>
-        <a href="/uploads/${f.nombre}" target="_blank" style="color:var(--accent);text-decoration:none;font-size:13px;">${f.nombre}</a>
+        <a href="/api/adjuntos/${f.id}/descargar" target="_blank" style="color:var(--accent);text-decoration:none;font-size:13px;">${f.nombre}</a>
         <span style="color:var(--muted);font-size:11px;">(${(f.tamano/1024).toFixed(1)} KB)</span>
       </div>`
     ).join('');
