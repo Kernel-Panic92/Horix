@@ -3896,25 +3896,39 @@ async function confirmarImportarEmp() {
 }
 
 async function aprobarRegistro(id, aprobar) {
-  if (!aprobar) {
-    // Pedir observaciones al rechazar
-    const obs = prompt('Motivo del rechazo (opcional):');
-    try {
-      await POST(`/api/registros/${id}/aprobar`, { aprobar: false, observaciones: obs || '' });
-      showToast('Registro rechazado.');
-      await loadAll();
-      renderHistorial();
-    } catch(e) { showToast(e.message, 'error'); }
-    return;
-  }
-  // Aprobar directo o con observaciones opcionales
-  const obs = prompt('Observaciones (opcional):');
-  try {
-    await POST(`/api/registros/${id}/aprobar`, { aprobar: true, observaciones: obs || '' });
-    showToast('Registro aprobado.');
-    await loadAll();
-    renderHistorial();
-  } catch(e) { showToast(e.message, 'error'); }
+  const accion = aprobar ? 'aprobar' : 'rechazar';
+  confirmar({
+    titulo: accion.charAt(0).toUpperCase() + accion.slice(1) + ' Registro',
+    mensaje: `¿Estás seguro de que deseas ${accion} este registro?`,
+    icono: aprobar ? '✓' : '✗',
+    onConfirm: async () => {
+      const obs = document.getElementById('confirm-obs')?.value || '';
+      try {
+        await POST(`/api/registros/${id}/aprobar`, { aprobar, observaciones: obs });
+        showToast(`Registro ${accion === 'aprobar' ? 'aprobado' : 'rechazado'}.`);
+        await loadAll();
+        renderHistorial();
+        // Cerrar modal de detalle si está abierto
+        document.getElementById('modal-detalle-reg')?.remove();
+      } catch(e) { showToast(e.message, 'error'); }
+    }
+  });
+  // Agregar campo opcional de observaciones al modal
+  setTimeout(() => {
+    const modal = document.querySelector('.modal.confirm-modal');
+    if (modal) {
+      const footer = modal.querySelector('.modal-footer');
+      if (footer && !document.getElementById('confirm-obs')) {
+        const obsWrap = document.createElement('div');
+        obsWrap.style.cssText = 'margin-bottom:16px;';
+        obsWrap.innerHTML = `
+          <div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:4px;">Observaciones (opcional)</div>
+          <input type="text" id="confirm-obs" style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:8px;background:var(--surface2);color:var(--text);font-size:14px;" placeholder="Motivo o notas...">
+        `;
+        footer.parentNode.insertBefore(obsWrap, footer);
+      }
+    }
+  }, 50);
 }
 
 function resaltarRegistro(registroId) {
