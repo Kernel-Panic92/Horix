@@ -343,7 +343,7 @@ function autenticar(rolesPermitidos = []) {
 }
 const soloAdmin      = autenticar(['admin']);
 const adminRrhh      = autenticar(['admin', 'rrhh']);
-const adminRrhhOp    = autenticar(['admin', 'rrhh', 'operador']);
+const adminRrhhOp    = autenticar(['admin', 'rrhh', 'operador', 'gerencia']);
 const podeAprobar    = autenticar(['admin', 'gerencia']);
 const todosRoles     = autenticar(['admin', 'rrhh', 'consulta', 'operador', 'gerencia']);
 
