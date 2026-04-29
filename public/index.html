@@ -723,7 +723,7 @@ async function desbloquearIP(ip) {
        <label>Contraseña</label>
        <input type="password" id="login-password" placeholder="Escribe tu contraseña" autocomplete="current-password" onkeydown="if(event.key=='Enter') document.getElementById('btn-login').click()"/>
      </div>
-    <button class="btn btn-primary" id="btn-login" onclick="iniciarSesion()" style="width:100%;justify-content:center;padding:13px;">
+    <button class="btn btn-primary" id="btn-login" onclick="iniciarSesionV2()" style="width:100%;justify-content:center;padding:13px;">
       Ingresar →
     </button>
     <div style="text-align:center;margin-top:16px;">
@@ -1586,7 +1586,7 @@ function soyOperador() { return sesion?.rol === 'operador'; }
 // ═══════════════════════════════════════════════════
 // AUTH
 // ═══════════════════════════════════════════════════
-async function iniciarSesion() {
+async function iniciarSesionV2() {
   const email    = document.getElementById('login-email').value.trim();
   const password = document.getElementById('login-password').value;
   const errEl    = document.getElementById('login-error');
@@ -3107,7 +3107,6 @@ function exportarCSV(modo) {
     const estado=r.estado==='rechazado' ? 'Rechazado' : r.estado==='aprobado' ? 'Aprobado' : 'Pendiente';
     const aprobador = r.estado==='rechazado' || r.estado==='aprobado' ? r.aprobadoPor||r.aprobador||'' : '';
     return [emp.nombre||'',emp.cedula||'',emp.cargo||'',emp.departamento||'',nom.nombre||'',r.fecha||'',r.horas||'',r.tipo||'',r.concepto||'',estado,aprobador,r.estado==='rechazado'?r.motivo||'':'',r.observaciones||'',r.transporte||0,r.nombreCreador||r.creadoPor||''];
-  });
   });
   const csv=[headers,...rows].map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
   const blob=new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8;'});
