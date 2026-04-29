@@ -1663,7 +1663,7 @@ async function iniciarApp() {
   }
 
   // Permisos de navegación
-  document.getElementById('nav-registro').classList.toggle('hidden', !puedoEditar() && !soyOperador());
+  document.getElementById('nav-registro').classList.toggle('hidden', !puedeRegistrar() && !soyOperador());
   document.getElementById('nav-nomina').classList.toggle('hidden', !puedoEditar() && !soyOperador());
   document.getElementById('nav-centros').classList.toggle('hidden', !soyAdmin() && !puedoEditar());
   document.getElementById('nav-usuarios').classList.toggle('hidden', !soyAdmin());
@@ -1672,7 +1672,7 @@ async function iniciarApp() {
   document.getElementById('nav-personalizacion').classList.toggle('hidden', !soyAdmin());
   document.getElementById('nav-seguridad').classList.toggle('hidden', !soyAdmin());
   document.getElementById('nav-configuracion').classList.toggle('hidden', !soyAdmin());
-  document.getElementById('dash-btn-nuevo').style.display = puedoEditar() || soyOperador() ? '' : 'none';
+  document.getElementById('dash-btn-nuevo').style.display = puedeRegistrar() || soyOperador() ? '' : 'none';
   // Ocultar filtro sede para operadores
   const sedeFilterEl = document.getElementById('fil-sede');
   if (sedeFilterEl) sedeFilterEl.classList.toggle('hidden-operador', soyOperador());
@@ -1744,7 +1744,7 @@ function cerrarSidebar() {
 async function navigate(page) {
   cerrarSidebar();
   // Bloquear páginas según rol
-  if (page==='registro' && !puedoEditar() && !soyOperador()) { showToast('Sin permiso para esta sección.','error'); return; }
+  if (page==='registro' && !puedeRegistrar() && !soyOperador()) { showToast('Sin permiso para esta sección.','error'); return; }
   if (page==='nomina' && !puedoEditar() && !soyOperador()) { showToast('Sin permiso para esta sección.','error'); return; }
   if ((page==='usuarios'||page==='smtp'||page==='backup'||page==='seguridad') && !soyAdmin()) { showToast('Solo el administrador puede acceder.','error'); return; }
 
