@@ -3960,6 +3960,82 @@ function poblarSelectAprobadores() {
   apro.forEach(u => fa.innerHTML += `<option value="${u.nombre}">${u.nombre}</option>`);
 }
 
+// ═══════════════════════════════════════════════════
+// DETALLE REGISTRO (Click-to-detail)
+// ═══════════════════════════════════════════════════
+function verDetalleRegistro(id) {
+  const r = registros.find(x => x.id === id);
+  if (!r) return;
+  const emp = empleados.find(e => e.id === r.empleadoId);
+  const nom = nominas.find(n => n.id === r.nominaId);
+  const estadoBadge = `<span class="badge badge-${r.estado==='aprobado'?'success':r.estado==='rechazado'?'danger':'warning'}">${r.estado}</span>`;
+  const tipoBadge = `<span class="badge badge-${r.tipo}">${r.tipo}</span>`;
+  const sede = r.sede || emp?.sede || '—';
+  const transporte = r.transporte > 0
+    ? new Intl.NumberFormat('es-CO',{style:'currency',currency:'COP',maximumFractionDigits:0}).format(r.transporte)
+    : '—';
+
+  const modal = document.createElement('div');
+  modal.className = 'modal-overlay open';
+  modal.id = 'modal-detalle-reg';
+  modal.innerHTML = `
+    <div class="modal" style="max-width:520px;">
+      <div class="modal-title">📄 Detalle del Registro</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px 24px;margin-bottom:20px;">
+        <div><div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:4px;">Empleado</div><div style="font-size:15px;font-weight:600;">${emp?.nombre||'—'}</div></div>
+        <div><div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:4px;">Cargo</div><div style="font-size:15px;">${emp?.cargo||'—'}</div></div>
+        <div><div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:4px;">Sede</div><div style="font-size:15px;color:var(--accent);">📍 ${sede}</div></div>
+        <div><div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:4px;">Fecha</div><div style="font-size:15px;">${fmt(r.fecha)}</div></div>
+        <div><div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:4px;">Horas</div><div style="font-size:15px;font-weight:700;">${parseFloat(r.horas).toFixed(1)}h</div></div>
+        <div><div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:4px;">Tipo</div><div>${tipoBadge}</div></div>
+        <div><div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:4px;">Período</div><div>${nom?`<span class="badge badge-${nom.tipo}">${nom.nombre}</span>`:'—'}</div></div>
+        <div><div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:4px;">Estado</div><div>${estadoBadge}</div></div>
+        <div><div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:4px;">Concepto</div><div><code style="background:var(--surface2);padding:2px 7px;border-radius:5px;font-size:13px;">${r.concepto||'—'}</code></div></div>
+        <div><div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:4px;">Aprobador</div><div style="font-size:14px;">${r.aprobador||'—'}</div></div>
+        <div><div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:4px;">Registrado por</div><div style="font-size:13px;color:var(--muted);">${r.nombreCreador||r.creadoPor||'—'}</div></div>
+        <div><div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:4px;">Transporte</div><div style="font-size:15px;font-weight:600;color:var(--success);">${transporte}</div></div>
+      </div>
+      <div style="margin-bottom:16px;">
+        <div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:6px;">Motivo</div>
+        <div style="font-size:14px;background:var(--surface2);padding:12px;border-radius:8px;">${r.motivo||'—'}</div>
+      </div>
+      ${r.observaciones ? `<div style="margin-bottom:16px;">
+        <div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:6px;">Observaciones</div>
+        <div style="font-size:14px;background:var(--surface2);padding:12px;border-radius:8px;">${r.observaciones}</div>
+      </div>` : ''}
+      <div id="detalle-adjuntos" style="margin-bottom:20px;">
+        <div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:6px;">Adjuntos</div>
+        <div id="detalle-adj-list" style="color:var(--muted);font-size:13px;">Cargando...</div>
+      </div>
+      <div class="modal-footer">
+        ${r.estado==='pendiente' && puedoAprobar() ? `
+          <button class="btn btn-success" onclick="aprobarRegistro('${r.id}', true); document.getElementById('modal-detalle-reg')?.remove();">✓ Aprobar</button>
+          <button class="btn btn-danger" onclick="aprobarRegistro('${r.id}', false); document.getElementById('modal-detalle-reg')?.remove();">✗ Rechazar</button>
+        ` : ''}
+        ${puedoEditar() ? `<button class="btn btn-danger" onclick="eliminarRegistro('${r.id}'); document.getElementById('modal-detalle-reg')?.remove();">🗑 Eliminar</button>` : ''}
+        <button class="btn btn-secondary" onclick="document.getElementById('modal-detalle-reg')?.remove()">Cerrar</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(modal);
+  modal.addEventListener('click', e => { if(e.target===modal) modal.remove(); });
+
+  // Cargar adjuntos
+  fetch(`/api/registros/${r.id}/adjuntos`).then(r=>r.json()).then(files=>{
+    const cont = document.getElementById('detalle-adj-list');
+    if (!files.length) { cont.textContent = 'Sin archivos adjuntos'; return; }
+    cont.innerHTML = files.map(f =>
+      `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border);">
+        <span>📎</span>
+        <a href="/uploads/${f.filename}" target="_blank" style="color:var(--accent);text-decoration:none;font-size:13px;">${f.originalname}</a>
+        <span style="color:var(--muted);font-size:11px;">(${(f.size/1024).toFixed(1)} KB)</span>
+      </div>`
+    ).join('');
+  }).catch(()=>{
+    document.getElementById('detalle-adj-list').textContent = 'Error cargando adjuntos';
+  });
+}
+
 </script>
 </body>
 </html>
