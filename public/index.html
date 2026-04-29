@@ -715,17 +715,17 @@ async function desbloquearIP(ip) {
     <div class="login-sub">Sistema de Control de Horas Extra</div>
     <div class="login-title">Iniciar Sesión</div>
     <div class="login-error" id="login-error"></div>
-    <div class="form-group" style="margin-bottom:16px;">
-      <label>Correo Electrónico</label>
-      <input type="email" id="login-email" placeholder="correo@empresa.com" autocomplete="email"/>
-    </div>
-    <div class="form-group" style="margin-bottom:24px;">
-      <label>Contraseña</label>
-      <input type="password" id="login-password" placeholder="Escribe tu contraseña" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()"/>
-    </div>
-    <button class="btn btn-primary" id="btn-login" onclick="doLogin()" style="width:100%;justify-content:center;padding:13px;">
-      Ingresar →
-    </button>
+     <div class="form-group" style="margin-bottom:16px;">
+       <label>Correo Electrónico</label>
+       <input type="email" id="login-email" placeholder="correo@empresa.com" autocomplete="email"/>
+     </div>
+     <div class="form-group" style="margin-bottom:24px;">
+       <label>Contraseña</label>
+       <input type="password" id="login-password" placeholder="Escribe tu contraseña" autocomplete="current-password" onkeydown="if(event.key=='Enter') document.getElementById('btn-login').click()"/>
+     </div>
+     <button class="btn btn-primary" id="btn-login" onclick="doLogin()" style="width:100%;justify-content:center;padding:13px;">
+       Ingresar →
+     </button>
     <div style="text-align:center;margin-top:16px;">
       <a href="#" onclick="abrirForgot()" style="font-size:13px;color:var(--muted);text-decoration:none;" onmouseover="this.style.color='var(--text)'" onmouseout="this.style.color='var(--muted)'">&#xBF;Olvidaste tu contrase&#xF1;a?</a>
     </div>
