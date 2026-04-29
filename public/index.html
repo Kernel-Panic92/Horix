@@ -963,7 +963,7 @@ async function desbloquearIP(ip) {
         <button class="btn btn-secondary btn-sm" onclick="exportarCSV('historial')">📥 Exportar</button>
       </div>
       <div class="table-wrap" id="historial-table-wrap">
-        <table><thead><tr><th>Empleado</th><th>Cargo</th><th>Sede</th><th>Fecha</th><th>Horas</th><th>Tipo</th><th>Período</th><th>Concepto</th><th>Motivo</th><th>Aprobador</th><th>Estado</th><th>Registrado por</th><th>Transporte</th><th>Observaciones</th><th>Adjuntos</th><th id="hist-th-aprobar">Aprobar/Rechazar</th><th id="hist-th-acciones">Acciones</th></tr></thead>
+        <table><thead><tr><th>Empleado</th><th>Fecha</th><th>Horas</th><th>Tipo</th><th>Estado</th><th id="hist-th-aprobar" style="display:none">Aprobar/Rechazar</th><th id="hist-th-acciones" style="display:none">Acciones</th></tr></thead>
         <tbody id="hist-body"></tbody></table>
       </div>
     </div>
@@ -2429,40 +2429,25 @@ function renderHistorial() {
   if(sedeF)  data=data.filter(r=>(r.sede||empleados.find(e=>e.id===r.empleadoId)?.sede||'')=== sedeF);
 
   // Ocultar columnas según permisos
-  document.getElementById('hist-th-acciones').style.display = puedoEditar() ? '' : 'none';
-  document.getElementById('hist-th-aprobar').style.display = puedoAprobar() ? '' : 'none';
+   document.getElementById('hist-th-acciones').style.display = puedoEditar() ? '' : 'none';
+   document.getElementById('hist-th-aprobar').style.display = puedoAprobar() ? '' : 'none';
 
-   const tbody=document.getElementById('hist-body');
-   if (!data.length) { tbody.innerHTML=`<tr><td colspan="16" data-label=""><div class="empty"><div class="empty-icon">🔍</div><div class="empty-text">No se encontraron registros</div></div></td></tr>`; return; }
-   tbody.innerHTML=data.map(r=>{
-     const emp=empleados.find(e=>e.id===r.empleadoId);
-     const nom=nominas.find(n=>n.id===r.nominaId);
-     const acciones = puedoEditar() ? `<td data-label="Acciones"><div class="actions-cell"><button class="btn btn-danger btn-sm" onclick="eliminarRegistro('${r.id}')">🗑</button></div></td>` : '<td data-label="Acciones" style="display:none"></td>';
-     const sedeBadge=r.sede||emp?.sede||'—';
-     const estadoBadge = `<span class="badge badge-${r.estado==='aprobado'?'success':r.estado==='rechazado'?'danger':'warning'}">${r.estado}</span>`;
-     return `<tr>
-       <td data-label="Empleado"><strong>${emp?emp.nombre:'—'}</strong></td>
-       <td data-label="Cargo">${emp?emp.cargo:'—'}</td>
-       <td data-label="Sede"><span style="font-size:12px;color:var(--accent)">📍 ${sedeBadge}</span></td>
-       <td data-label="Fecha">${fmt(r.fecha)}</td>
-       <td data-label="Horas"><strong>${parseFloat(r.horas).toFixed(1)}h</strong></td>
-       <td data-label="Tipo"><span class="badge badge-${r.tipo}">${r.tipo}</span></td>
-       <td data-label="Período">${nom?`<span class="badge badge-${nom.tipo}">${nom.nombre}</span>`:'—'}</td>
-       <td data-label="Concepto"><code style="background:var(--surface2);padding:2px 7px;border-radius:5px;font-size:12px;">${r.concepto||'—'}</code></td>
-       <td data-label="Motivo" style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${r.motivo}">${r.motivo}</td>
-       <td data-label="Aprobador">${r.aprobador}</td>
-       <td data-label="Estado">${estadoBadge}</td>
-       <td data-label="Registrado por" style="font-size:12px;color:var(--muted);" title="${r.nombreCreador||r.creadoPor||''}"><span style="background:var(--surface2);padding:2px 7px;border-radius:5px;">${r.nombreCreador||r.creadoPor||'—'}</span></td>
-       <td data-label="Transporte">${r.transporte>0 ? '<strong style="color:var(--success)">'+new Intl.NumberFormat('es-CO',{style:'currency',currency:'COP',maximumFractionDigits:0}).format(r.transporte)+'</strong>' : '—'}</td>
-       <td data-label="Observaciones" style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${r.observaciones||''}">${r.observaciones||'—'}</td>
-       <td data-label="Adjuntos" id="adj-cell-${r.id}"><span style="color:var(--muted);font-size:12px;">…</span></td>
-       <td data-label="Aprobar/Rechazar">${r.estado==='pendiente' && puedoAprobar() ? `<div class="actions-cell"><button class="btn btn-success btn-sm" onclick="aprobarRegistro('${r.id}', true)">✓ Aprobar</button><button class="btn btn-danger btn-sm" onclick="aprobarRegistro('${r.id}', false)">✗ Rechazar</button></div>` : ''}</td>
-       ${acciones}
-     </tr>`;
-   }).join('');
-   // Cargar adjuntos de cada registro visible de forma asíncrona
-   data.forEach(r => cargarAdjuntosEnCelda(r.id));
- }
+    const tbody=document.getElementById('hist-body');
+    if (!data.length) { tbody.innerHTML=`<tr><td colspan="5" data-label=""><div class="empty"><div class="empty-icon">🔍</div><div class="empty-text">No se encontraron registros</div></div></td></tr>`; return; }
+    tbody.innerHTML=data.map(r=>{
+      const emp=empleados.find(e=>e.id===r.empleadoId);
+      const estadoBadge = `<span class="badge badge-${r.estado==='aprobado'?'success':r.estado==='rechazado'?'danger':'warning'}">${r.estado}</span>`;
+      return `<tr style="cursor:pointer" onclick="verDetalleRegistro('${r.id}')">
+        <td data-label="Empleado"><strong>${emp?emp.nombre:'—'}</strong></td>
+        <td data-label="Fecha">${fmt(r.fecha)}</td>
+        <td data-label="Horas"><strong>${parseFloat(r.horas).toFixed(1)}h</strong></td>
+        <td data-label="Tipo"><span class="badge badge-${r.tipo}">${r.tipo}</span></td>
+        <td data-label="Estado">${estadoBadge}</td>
+      </tr>`;
+    }).join('');
+    // Cargar adjuntos de cada registro visible de forma asíncrona
+    data.forEach(r => cargarAdjuntosEnCelda(r.id));
+  }
 async function eliminarRegistro(id) {
   confirmar({
     titulo: 'Eliminar Registro',
