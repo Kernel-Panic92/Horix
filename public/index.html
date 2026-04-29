@@ -723,7 +723,7 @@ async function desbloquearIP(ip) {
        <label>Contraseña</label>
        <input type="password" id="login-password" placeholder="Escribe tu contraseña" autocomplete="current-password" onkeydown="if(event.key=='Enter') document.getElementById('btn-login').click()"/>
      </div>
-    <button class="btn btn-primary" id="btn-login" onclick="loginNow()" style="width:100%;justify-content:center;padding:13px;">
+    <button class="btn btn-primary" id="btn-login" onclick="iniciarSesion()" style="width:100%;justify-content:center;padding:13px;">
       Ingresar →
     </button>
     <div style="text-align:center;margin-top:16px;">
@@ -1586,7 +1586,7 @@ function soyOperador() { return sesion?.rol === 'operador'; }
 // ═══════════════════════════════════════════════════
 // AUTH
 // ═══════════════════════════════════════════════════
-async function loginNow() {
+async function iniciarSesion() {
   const email    = document.getElementById('login-email').value.trim();
   const password = document.getElementById('login-password').value;
   const errEl    = document.getElementById('login-error');
