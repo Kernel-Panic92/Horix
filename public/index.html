@@ -89,12 +89,26 @@
   .nav-item.active{color:var(--accent);border-left-color:var(--accent);background:rgba(79,142,247,0.08);}
   .nav-item.hidden{display:none;}
   .nav-icon{font-size:17px;width:22px;text-align:center;}
-  .nav-menu{flex:1;overflow-y:auto;overflow-x:hidden;padding-bottom:8px;}.sidebar-footer{padding:12px 16px;flex-shrink:0;}
-  .btn-logout{width:100%;background:rgba(247,97,79,0.1);border:1px solid rgba(247,97,79,0.2);color:var(--danger);border-radius:9px;padding:9px 14px;font-family:var(--font-body);font-size:13px;cursor:pointer;transition:all 0.2s;display:flex;align-items:center;justify-content:center;gap:8px;}
-  .btn-logout:hover{background:rgba(247,97,79,0.2);}
+   .nav-menu{flex:1;overflow-y:auto;overflow-x:hidden;padding-bottom:8px;}
+   .sidebar-footer{padding:12px 16px;flex-shrink:0;}
+   .btn-logout{width:100%;background:rgba(247,97,79,0.1);border:1px solid rgba(247,97,79,0.2);color:var(--danger);border-radius:9px;padding:9px 14px;font-family:var(--font-body);font-size:13px;cursor:pointer;transition:all 0.2s;display:flex;align-items:center;justify-content:center;gap:8px;}
+   .btn-logout:hover{background:rgba(247,97,79,0.2);}
 
-  /* ── MAIN ── */
-  .main{margin-left:230px;flex:1;padding:36px 40px;padding-right:120px;}
+   /* Botón colapsar sidebar */
+   .sidebar-toggle{position:absolute;top:20px;right:-14px;width:28px;height:28px;background:var(--surface);border:1px solid var(--border);border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:12px;color:var(--muted);z-index:11;transition:all 0.2s;box-shadow:0 2px 6px rgba(0,0,0,0.15);}
+   .sidebar-toggle:hover{color:var(--text);border-color:var(--accent);}
+   .sidebar.collapsed{width:68px;padding:28px 0;}
+   .sidebar.collapsed .logo{padding:0 0 8px;text-align:center;}
+   .sidebar.collapsed .logo span{display:none;}
+   .sidebar.collapsed .user-info,.sidebar.collapsed .role-badge,.sidebar.collapsed .sidebar-footer>div:not(:first-child),.sidebar.collapsed .nav-item span:not(.nav-icon),.sidebar.collapsed .nav-arrow,.sidebar.collapsed #nav-config-submenu{display:none;}
+   .sidebar.collapsed .nav-item{justify-content:center;padding:12px 0;}
+   .sidebar.collapsed .nav-icon{font-size:20px;width:auto;}
+   .sidebar.collapsed .sidebar-footer{padding:12px 8px;}
+   .sidebar.collapsed .btn-logout{justify-content:center;}
+
+   /* ── MAIN ── */
+   .main{margin-left:230px;flex:1;padding:36px 40px;padding-right:120px;transition:margin-left 0.28s cubic-bezier(.4,0,.2,1);}
+   .sidebar.collapsed~.main{margin-left:68px;}
   .main-topbar{position:fixed;top:14px;right:20px;z-index:50;display:flex;align-items:center;gap:6px;}
   .main-icon-btn{background:var(--surface);border:1px solid var(--border);border-radius:9px;width:36px;height:36px;display:flex;align-items:center;justify-content:center;font-size:17px;cursor:pointer;color:var(--muted);transition:all 0.15s;box-shadow:0 2px 8px rgba(0,0,0,0.12);}
   .main-icon-btn:hover{color:var(--text);border-color:var(--accent);}
@@ -395,9 +409,12 @@
     #hist-filters { flex-wrap: wrap; gap: 8px; }
     #hist-filters > * { flex: 1 1 calc(50% - 8px); min-width: 130px; }
 
-    /* Tablas con scroll horizontal en tablet */
+    /* Tablas: mejorar scroll en tablet */
     .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
-    .table-wrap table { min-width: 600px; }
+    .table-wrap table { min-width: 800px; }
+    /* Hacer tablas más compactas en tablet */
+    .table-wrap td, .table-wrap th { padding: 10px 12px; font-size: 13px; }
+    .table-wrap th { font-size: 10px; }
 
     /* Summary reportes en 2 cols */
     .summary-row { grid-template-columns: repeat(2, 1fr) !important; }
@@ -465,15 +482,48 @@
     }
     .table-wrap tbody td:last-child::before { display: none; }
 
-    /* Tablas que deben mantener scroll (historial/reportes tienen muchas cols) */
-    .table-scroll-mobile { overflow-x: auto !important; -webkit-overflow-scrolling: touch; }
-    .table-scroll-mobile table,
-    .table-scroll-mobile thead,
-    .table-scroll-mobile tbody,
-    .table-scroll-mobile th,
-    .table-scroll-mobile td,
-    .table-scroll-mobile tr { display: revert !important; }
-    .table-scroll-mobile thead { display: revert !important; }
+    /* En móvil, todas las tablas se convierten en tarjetas */
+    .table-wrap { overflow-x: visible; }
+    .table-wrap table,
+    .table-wrap thead,
+    .table-wrap tbody,
+    .table-wrap th,
+    .table-wrap td,
+    .table-wrap tr { display: block; }
+    .table-wrap thead { display: none; }
+    .table-wrap tbody tr {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      margin-bottom: 12px;
+      padding: 12px 14px;
+      position: relative;
+    }
+    .table-wrap tbody td {
+      padding: 6px 0;
+      border: none;
+      font-size: 13px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .table-wrap tbody td::before {
+      content: attr(data-label);
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: var(--muted);
+      min-width: 90px;
+      flex-shrink: 0;
+    }
+    /* Acciones al fondo derecha */
+    .table-wrap tbody td:last-child {
+      justify-content: flex-end;
+      margin-top: 6px;
+      padding-top: 8px;
+      border-top: 1px solid var(--border);
+    }
+    .table-wrap tbody td:last-child::before { display: none; }
 
     .form-grid { grid-template-columns: 1fr; gap: 14px; }
 
@@ -745,8 +795,9 @@ async function desbloquearIP(ip) {
 ══════════════════════════════════════════ -->
 <div id="app-screen">
   <div class="mob-overlay" id="mob-overlay" onclick="cerrarSidebar()"></div>
-  <nav class="sidebar" id="sidebar">
-    <div class="logo">HORIX<span>.</span></div>
+   <nav class="sidebar" id="sidebar">
+     <div class="sidebar-toggle" id="sidebar-toggle" onclick="toggleSidebarCollapse()">◀</div>
+     <div class="logo">HORIX<span>.</span></div>
     <div class="user-info">
       <div class="user-name" id="ui-nombre">—</div>
       <div class="user-role" id="ui-email">—</div>
@@ -951,8 +1002,8 @@ async function desbloquearIP(ip) {
         <select id="fil-empleado" onchange="renderHistorial()"><option value="">Todos los empleados</option></select>
         <button class="btn btn-secondary btn-sm" onclick="exportarCSV('historial')">📥 Exportar</button>
       </div>
-      <div class="table-wrap table-scroll-mobile" style="overflow-x:auto;">
-        <table style="min-width:1400px;"><thead><tr><th>Empleado</th><th>Cargo</th><th>Sede</th><th>Fecha</th><th>Horas</th><th>Tipo</th><th>Período</th><th>Concepto</th><th>Motivo</th><th>Aprobador</th><th>Estado</th><th>Registrado por</th><th>Transporte</th><th>Observaciones</th><th>Adjuntos</th><th id="hist-th-aprobar">Aprobar/Rechazar</th><th id="hist-th-acciones">Acciones</th></tr></thead>
+      <div class="table-wrap" id="historial-table-wrap">
+        <table><thead><tr><th>Empleado</th><th>Cargo</th><th>Sede</th><th>Fecha</th><th>Horas</th><th>Tipo</th><th>Período</th><th>Concepto</th><th>Motivo</th><th>Aprobador</th><th>Estado</th><th>Registrado por</th><th>Transporte</th><th>Observaciones</th><th>Adjuntos</th><th id="hist-th-aprobar">Aprobar/Rechazar</th><th id="hist-th-acciones">Acciones</th></tr></thead>
         <tbody id="hist-body"></tbody></table>
       </div>
     </div>
@@ -1673,9 +1724,17 @@ fetch('/api/version').then(r => r.json()).then(d => {
     el.textContent = `v${d.version}${rama} — HORIX`;
   }
 }).catch(() => {});
-  await loadAll();
-  aplicarLogo();
-  navigate('dashboard');
+   await loadAll();
+   aplicarLogo();
+   // Restaurar estado del sidebar
+   const sidebarCollapsed = localStorage.getItem('sidebar-collapsed') === 'true';
+   const sidebar = document.getElementById('sidebar');
+   const toggleBtn = document.getElementById('sidebar-toggle');
+   if (sidebarCollapsed) {
+     sidebar.classList.add('collapsed');
+     toggleBtn.textContent = '▶';
+   }
+   navigate('dashboard');
 }
 
 // ═══════════════════════════════════════════════════
@@ -1709,6 +1768,13 @@ function toggleSidebar() {
     sidebar.classList.add('open');
     overlay.classList.add('visible');
   }
+}
+function toggleSidebarCollapse() {
+  const sidebar = document.getElementById('sidebar');
+  const toggleBtn = document.getElementById('sidebar-toggle');
+  sidebar.classList.toggle('collapsed');
+  toggleBtn.textContent = sidebar.classList.contains('collapsed') ? '▶' : '◀';
+  localStorage.setItem('sidebar-collapsed', sidebar.classList.contains('collapsed'));
 }
 function cerrarSidebar() {
   document.getElementById('sidebar').classList.remove('open');
@@ -2406,35 +2472,37 @@ function renderHistorial() {
   document.getElementById('hist-th-acciones').style.display = puedoEditar() ? '' : 'none';
   document.getElementById('hist-th-aprobar').style.display = puedoAprobar() ? '' : 'none';
 
-  const tbody=document.getElementById('hist-body');
-  if (!data.length) { tbody.innerHTML=`<tr><td colspan="16"><div class="empty"><div class="empty-icon">🔍</div><div class="empty-text">No se encontraron registros</div></div></td></tr>`; return; }
-  tbody.innerHTML=data.map(r=>{
-    const emp=empleados.find(e=>e.id===r.empleadoId);
-    const nom=nominas.find(n=>n.id===r.nominaId);
-    const acciones = puedoEditar() ? `<td><div class="actions-cell"><button class="btn btn-danger btn-sm" onclick="eliminarRegistro('${r.id}')">🗑</button></div></td>` : '<td style="display:none"></td>';
-    const sedeBadge=r.sede||emp?.sede||'—';
-    const estadoBadge = `<span class="badge badge-${r.estado==='aprobado'?'success':r.estado==='rechazado'?'danger':'warning'}">${r.estado}</span>`;
-    return `<tr>
-      <td><strong>${emp?emp.nombre:'—'}</strong></td><td>${emp?emp.cargo:'—'}</td>
-      <td><span style="font-size:12px;color:var(--accent)">📍 ${sedeBadge}</span></td>
-      <td>${fmt(r.fecha)}</td><td><strong>${parseFloat(r.horas).toFixed(1)}h</strong></td>
-      <td><span class="badge badge-${r.tipo}">${r.tipo}</span></td>
-      <td>${nom?`<span class="badge badge-${nom.tipo}">${nom.nombre}</span>`:'—'}</td>
-      <td><code style="background:var(--surface2);padding:2px 7px;border-radius:5px;font-size:12px;">${r.concepto||'—'}</code></td>
-      <td style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${r.motivo}">${r.motivo}</td>
-      <td>${r.aprobador}</td>
-      <td>${estadoBadge}</td>
-      <td style="font-size:12px;color:var(--muted);" title="${r.nombreCreador||r.creadoPor||''}"><span style="background:var(--surface2);padding:2px 7px;border-radius:5px;">${r.nombreCreador||r.creadoPor||'—'}</span></td>
-      <td>${r.transporte>0 ? '<strong style="color:var(--success)">'+new Intl.NumberFormat('es-CO',{style:'currency',currency:'COP',maximumFractionDigits:0}).format(r.transporte)+'</strong>' : '—'}</td>
-      <td style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${r.observaciones||''}">${r.observaciones||'—'}</td>
-      <td id="adj-cell-${r.id}"><span style="color:var(--muted);font-size:12px;">…</span></td>
-      <td>${r.estado==='pendiente' && puedoAprobar() ? `<div class="actions-cell"><button class="btn btn-success btn-sm" onclick="aprobarRegistro('${r.id}', true)">✓ Aprobar</button><button class="btn btn-danger btn-sm" onclick="aprobarRegistro('${r.id}', false)">✗ Rechazar</button></div>` : ''}</td>
-      ${acciones}
-    </tr>`;
-  }).join('');
-  // Cargar adjuntos de cada registro visible de forma asíncrona
-  data.forEach(r => cargarAdjuntosEnCelda(r.id));
-}
+   const tbody=document.getElementById('hist-body');
+   if (!data.length) { tbody.innerHTML=`<tr><td colspan="16" data-label=""><div class="empty"><div class="empty-icon">🔍</div><div class="empty-text">No se encontraron registros</div></div></td></tr>`; return; }
+   tbody.innerHTML=data.map(r=>{
+     const emp=empleados.find(e=>e.id===r.empleadoId);
+     const nom=nominas.find(n=>n.id===r.nominaId);
+     const acciones = puedoEditar() ? `<td data-label="Acciones"><div class="actions-cell"><button class="btn btn-danger btn-sm" onclick="eliminarRegistro('${r.id}')">🗑</button></div></td>` : '<td data-label="Acciones" style="display:none"></td>';
+     const sedeBadge=r.sede||emp?.sede||'—';
+     const estadoBadge = `<span class="badge badge-${r.estado==='aprobado'?'success':r.estado==='rechazado'?'danger':'warning'}">${r.estado}</span>`;
+     return `<tr>
+       <td data-label="Empleado"><strong>${emp?emp.nombre:'—'}</strong></td>
+       <td data-label="Cargo">${emp?emp.cargo:'—'}</td>
+       <td data-label="Sede"><span style="font-size:12px;color:var(--accent)">📍 ${sedeBadge}</span></td>
+       <td data-label="Fecha">${fmt(r.fecha)}</td>
+       <td data-label="Horas"><strong>${parseFloat(r.horas).toFixed(1)}h</strong></td>
+       <td data-label="Tipo"><span class="badge badge-${r.tipo}">${r.tipo}</span></td>
+       <td data-label="Período">${nom?`<span class="badge badge-${nom.tipo}">${nom.nombre}</span>`:'—'}</td>
+       <td data-label="Concepto"><code style="background:var(--surface2);padding:2px 7px;border-radius:5px;font-size:12px;">${r.concepto||'—'}</code></td>
+       <td data-label="Motivo" style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${r.motivo}">${r.motivo}</td>
+       <td data-label="Aprobador">${r.aprobador}</td>
+       <td data-label="Estado">${estadoBadge}</td>
+       <td data-label="Registrado por" style="font-size:12px;color:var(--muted);" title="${r.nombreCreador||r.creadoPor||''}"><span style="background:var(--surface2);padding:2px 7px;border-radius:5px;">${r.nombreCreador||r.creadoPor||'—'}</span></td>
+       <td data-label="Transporte">${r.transporte>0 ? '<strong style="color:var(--success)">'+new Intl.NumberFormat('es-CO',{style:'currency',currency:'COP',maximumFractionDigits:0}).format(r.transporte)+'</strong>' : '—'}</td>
+       <td data-label="Observaciones" style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${r.observaciones||''}">${r.observaciones||'—'}</td>
+       <td data-label="Adjuntos" id="adj-cell-${r.id}"><span style="color:var(--muted);font-size:12px;">…</span></td>
+       <td data-label="Aprobar/Rechazar">${r.estado==='pendiente' && puedoAprobar() ? `<div class="actions-cell"><button class="btn btn-success btn-sm" onclick="aprobarRegistro('${r.id}', true)">✓ Aprobar</button><button class="btn btn-danger btn-sm" onclick="aprobarRegistro('${r.id}', false)">✗ Rechazar</button></div>` : ''}</td>
+       ${acciones}
+     </tr>`;
+   }).join('');
+   // Cargar adjuntos de cada registro visible de forma asíncrona
+   data.forEach(r => cargarAdjuntosEnCelda(r.id));
+ }
 async function eliminarRegistro(id) {
   confirmar({
     titulo: 'Eliminar Registro',
@@ -2776,17 +2844,20 @@ function renderReporte() {
   tbody.innerHTML=data.map(r=>{
     const emp=empleados.find(e=>e.id===r.empleadoId), nom=nominas.find(n=>n.id===r.nominaId);
     const sedeTxt = r.sede||emp?.sede||'—';
-    return `<tr><td><strong>${emp?emp.nombre:'—'}</strong></td><td>${emp?emp.cargo:'—'}</td>
-      <td><span style="font-size:12px;color:var(--accent)">📍 ${sedeTxt}</span></td>
-      <td>${nom?nom.nombre:'—'}</td><td>${fmt(r.fecha)}</td>
-      <td><strong>${parseFloat(r.horas).toFixed(1)}h</strong></td>
-      <td><span class="badge badge-${r.tipo}">${r.tipo}</span></td>
-      <td><code style="background:var(--surface2);padding:2px 7px;border-radius:5px;font-size:12px;">${r.concepto||'—'}</code></td>
-      <td>${r.aprobador}</td>
-      <td style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${r.motivo}</td>
-      <td style="font-size:12px;color:var(--muted);"><span style="background:var(--surface2);padding:2px 7px;border-radius:5px;">${r.nombreCreador||r.creadoPor||'—'}</span></td>
-      <td>${r.transporte>0?'<strong style="color:var(--success)">'+new Intl.NumberFormat('es-CO',{style:'currency',currency:'COP',maximumFractionDigits:0}).format(r.transporte)+'</strong>':'—'}</td>
-      <td style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${r.observaciones||''}">${r.observaciones||'—'}</td>
+    return `<tr>
+      <td data-label="Empleado"><strong>${emp?emp.nombre:'—'}</strong></td>
+      <td data-label="Cargo">${emp?emp.cargo:'—'}</td>
+      <td data-label="Sede"><span style="font-size:12px;color:var(--accent)">📍 ${sedeTxt}</span></td>
+      <td data-label="Período">${nom?nom.nombre:'—'}</td>
+      <td data-label="Fecha">${fmt(r.fecha)}</td>
+      <td data-label="Horas"><strong>${parseFloat(r.horas).toFixed(1)}h</strong></td>
+      <td data-label="Tipo"><span class="badge badge-${r.tipo}">${r.tipo}</span></td>
+      <td data-label="Concepto"><code style="background:var(--surface2);padding:2px 7px;border-radius:5px;font-size:12px;">${r.concepto||'—'}</code></td>
+      <td data-label="Aprobador">${r.aprobador}</td>
+      <td data-label="Motivo" style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${r.motivo}</td>
+      <td data-label="Registrado por" style="font-size:12px;color:var(--muted);"><span style="background:var(--surface2);padding:2px 7px;border-radius:5px;">${r.nombreCreador||r.creadoPor||'—'}</span></td>
+      <td data-label="Transporte">${r.transporte>0?'<strong style="color:var(--success)">'+new Intl.NumberFormat('es-CO',{style:'currency',currency:'COP',maximumFractionDigits:0}).format(r.transporte)+'</strong>':'—'}</td>
+      <td data-label="Observaciones" style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${r.observaciones||''}">${r.observaciones||'—'}</td>
     </tr>`;
   }).join('');
 }
@@ -2842,14 +2913,14 @@ function renderCentros() {
       acciones += '<button class="btn btn-sm centro-btn-eliminar" data-id="' + c.id + '" data-nombre="' + c.nombre.replace(/"/g, '&quot;') + '" style="background:rgba(247,97,79,0.1);color:var(--danger);border:1px solid rgba(247,97,79,0.3);">🗑 Eliminar</button>';
     }
     rows.push(
-      '<tr>' +
-      '<td style="font-weight:600;">' + c.nombre + '</td>' +
-      '<td>' + estadoBadge + '</td>' +
-      '<td style="color:var(--muted);font-size:13px;">' + fecha + '</td>' +
-      '<td style="color:var(--muted);">' + empsCount + ' empleado' + (empsCount !== 1 ? 's' : '') + '</td>' +
-      '<td><div style="display:flex;gap:8px;">' + acciones + '</div></td>' +
-      '</tr>'
-    );
+       '<tr>' +
+       '<td data-label="Nombre" style="font-weight:600;">' + c.nombre + '</td>' +
+       '<td data-label="Estado">' + estadoBadge + '</td>' +
+       '<td data-label="Creado" style="color:var(--muted);font-size:13px;">' + fecha + '</td>' +
+       '<td data-label="Empleados" style="color:var(--muted);">' + empsCount + ' empleado' + (empsCount !== 1 ? 's' : '') + '</td>' +
+       '<td data-label="Acciones"><div style="display:flex;gap:8px;">' + acciones + '</div></td>' +
+       '</tr>'
+     );
   });
   tbody.innerHTML = rows.join('');
 
@@ -2919,13 +2990,13 @@ function renderUsuarios() {
   const tbody=document.getElementById('usuarios-body');
   if (!usuarios.length) { tbody.innerHTML=`<tr><td colspan="6"><div class="empty"><div class="empty-icon">🔐</div><div class="empty-text">No hay usuarios</div></div></td></tr>`; return; }
   tbody.innerHTML=usuarios.map(u=>`<tr>
-    <td><strong>${u.nombre}</strong></td>
-    <td>${u.email}</td>
-    <td><span class="badge badge-${u.rol}">${rolLabel(u.rol)}</span></td>
-    <td><span style="font-size:12px;color:var(--accent)">📍 ${u.sede||'—'}</span></td>
-    <td><span class="badge badge-${u.activo?'activo':'inactivo'}">${u.activo?'Activo':'Inactivo'}</span></td>
-    <td>${fmtDate(u.creado)}</td>
-    <td><div class="actions-cell">
+    <td data-label="Nombre"><strong>${u.nombre}</strong></td>
+    <td data-label="Email">${u.email}</td>
+    <td data-label="Rol"><span class="badge badge-${u.rol}">${rolLabel(u.rol)}</span></td>
+    <td data-label="Sede"><span style="font-size:12px;color:var(--accent)">📍 ${u.sede||'—'}</span></td>
+    <td data-label="Estado"><span class="badge badge-${u.activo?'activo':'inactivo'}">${u.activo?'Activo':'Inactivo'}</span></td>
+    <td data-label="Creado">${fmtDate(u.creado)}</td>
+    <td data-label="Acciones"><div class="actions-cell">
       <button class="btn btn-secondary btn-sm" onclick="editarUsuario('${u.id}')">✏ Editar</button>
       <button class="btn btn-secondary btn-sm" onclick="enviarResetPassword('${u.id}')">🔑 Reset</button>
       ${u.id!==sesion.id?`<button class="btn btn-danger btn-sm" onclick="eliminarUsuario('${u.id}')">🗑</button>`:''}

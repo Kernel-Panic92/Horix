@@ -1,5 +1,28 @@
 # Changelog - Horix
 
+## [2.3.4] - 2026-04-29
+
+### ✨ Añadido
+- **Botón para colapsar sidebar**: Nuevo botón en el lateral que permite ocultar/mostrar el menú. Al colapsar, solo se muestran los iconos para ahorrar espacio en pantalla
+- **Persistencia del estado del sidebar**: El estado colapsado/expandido se guarda en localStorage y se restaura al recargar la página
+
+### 🎨 Mejorado
+- **Interfaz responsive mejorada**: 
+  - Todas las tablas ahora se convierten en tarjetas apiladas en móviles (≤480px) con etiquetas `data-label`
+  - Mejorada la visualización de tablas en tablets (≤768px) con scroll horizontal más fluido
+  - Agregado `data-label` a las tablas: Historial, Empleados, Centros, Usuarios y Reportes para mejor experiencia móvil
+  - El sidebar ahora tiene transición suave al colapsar/expandir
+
+### 📝 Notas técnicas
+- Nueva función `toggleSidebarCollapse()` para manejar el colapso del sidebar
+- CSS actualizado para sidebar colapsado: `.sidebar.collapsed` (ancho 68px, solo iconos)
+- Mejorado el CSS responsive para móviles y tablets en `index.html`
+
+### 📋 Pendiente para próxima sesión
+- [ ] **Mejorar legibilidad de widgets**: Optimizar el diseño y presentación de las tarjetas de métricas en el dashboard
+
+---
+
 ## [2.3.3] - 2026-04-28
 
 ### 🐛 Corregido
