@@ -386,6 +386,9 @@
 
     .stats-row { grid-template-columns: repeat(2, 1fr); gap: 12px; }
 
+    /* Ocultar logo en tablet/móvil dentro del sidebar */
+    .sidebar .logo, .sidebar.logo { display: none; }
+
     .form-grid { grid-template-columns: 1fr; }
     .form-group.full { grid-column: 1; }
 
@@ -457,49 +460,6 @@
     }
 
     .table-wrap tbody td {
-      padding: 4px 0;
-      border: none;
-      font-size: 13px;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-    .table-wrap tbody td::before {
-      content: attr(data-label);
-      font-size: 10px;
-      text-transform: uppercase;
-      letter-spacing: 0.8px;
-      color: var(--muted);
-      min-width: 90px;
-      flex-shrink: 0;
-    }
-    /* Acciones al fondo derecha */
-    .table-wrap tbody td:last-child {
-      justify-content: flex-end;
-      margin-top: 6px;
-      padding-top: 8px;
-      border-top: 1px solid var(--border);
-    }
-    .table-wrap tbody td:last-child::before { display: none; }
-
-    /* En móvil, todas las tablas se convierten en tarjetas */
-    .table-wrap { overflow-x: visible; }
-    .table-wrap table,
-    .table-wrap thead,
-    .table-wrap tbody,
-    .table-wrap th,
-    .table-wrap td,
-    .table-wrap tr { display: block; }
-    .table-wrap thead { display: none; }
-    .table-wrap tbody tr {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      margin-bottom: 12px;
-      padding: 12px 14px;
-      position: relative;
-    }
-    .table-wrap tbody td {
       padding: 6px 0;
       border: none;
       font-size: 13px;
@@ -534,7 +494,7 @@
     canvas { max-height: 240px; }
 
     /* Summary reportes en 1 col */
-    .summary-row { grid-template-columns: 1fr 1fr !important; }
+    .summary-row { grid-template-columns: 1fr !important; }
 
     /* Empleados: 1 columna */
     .emp-grid { grid-template-columns: 1fr !important; }
