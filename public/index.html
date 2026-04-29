@@ -2332,19 +2332,19 @@ async function cargarAdjuntosEnCelda(regId) {
   if (!celda) return;
   try {
     const res = await fetch(`/api/registros/${regId}/adjuntos`, { headers: { 'Authorization': 'Bearer ' + sesion.token } });
-    const adjs = await res.json();
-    if (!adjs.length) { celda.innerHTML = '<span style="color:var(--muted);font-size:12px;">—</span>'; return; }
+    const adjuntos = await res.json();
+    if (!adjuntos.length) { celda.innerHTML = '<span style="color:var(--muted);font-size:12px;">—</span>'; return; }
     celda.innerHTML = `<button class="btn btn-secondary btn-sm" onclick="abrirModalAdjuntos('${regId}')" style="font-size:11px;padding:3px 8px;">
-      📎 ${adjs.length}
+      📎 ${adjuntos.length}
     </button>`;
-    celda.dataset.adjs = JSON.stringify(adjs);
+    celda.dataset.adjuntos = JSON.stringify(adjuntos);
   } catch { celda.innerHTML = '<span style="color:var(--muted);font-size:12px;">—</span>'; }
 }
 
 // Modal para ver adjuntos de un registro existente
 function abrirModalAdjuntos(regId) {
   const celda = document.getElementById(`adj-cell-${regId}`);
-  const adjs = celda?.dataset.adjs ? JSON.parse(celda.dataset.adjs) : [];
+  const adjs = celda?.dataset.adjuntos ? JSON.parse(celda.dataset.adjuntos) : [];
   const puedeElim = sesion?.rol === 'admin' || sesion?.rol === 'rrhh';
   const contenido = adjs.map(a => `
     <div style="display:flex;align-items:center;gap:10px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 14px;margin-bottom:8px;">
@@ -2402,9 +2402,9 @@ async function eliminarAdjunto(adjId, regId) {
     await cargarAdjuntosEnCelda(regId);
     // Refrescar el botón del modal si hay más adjuntos
     const celda = document.getElementById(`adj-cell-${regId}`);
-    if (celda?.dataset.adjs) {
-      const adjs = JSON.parse(celda.dataset.adjs).filter(a => a.id !== adjId);
-      celda.dataset.adjs = JSON.stringify(adjs);
+    if (celda?.dataset.adjuntos) {
+      const adjs = JSON.parse(celda.dataset.adjuntos).filter(a => a.id !== adjId);
+      celda.dataset.adjuntos = JSON.stringify(adjs);
       if (adjs.length) abrirModalAdjuntos(regId);
     }
     showToast('Adjunto eliminado.');
@@ -4013,7 +4013,7 @@ function verDetalleRegistro(id) {
   modal.addEventListener('click', e => { if(e.target===modal) modal.remove(); });
 
   // Cargar adjuntos
-  fetch(`/api/registros/${r.id}/adjuntos`).then(r=>r.json()).then(files=>{
+  fetch(`/api/registros/${r.id}/adjuntos`, { headers: { 'Authorization': 'Bearer ' + sesion.token } }).then(r=>r.json()).then(files=>{
     const cont = document.getElementById('detalle-adj-list');
     if (!files.length) { cont.textContent = 'Sin archivos adjuntos'; return; }
     cont.innerHTML = files.map(f =>
