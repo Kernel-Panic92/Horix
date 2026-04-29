@@ -963,7 +963,7 @@ async function desbloquearIP(ip) {
         <button class="btn btn-secondary btn-sm" onclick="exportarCSV('historial')">📥 Exportar</button>
       </div>
       <div class="table-wrap" id="historial-table-wrap">
-        <table><thead><tr><th>Empleado</th><th>Fecha</th><th>Horas</th><th>Tipo</th><th>Estado</th><th id="hist-th-aprobar" style="display:none">Aprobar/Rechazar</th><th id="hist-th-acciones" style="display:none">Acciones</th></tr></thead>
+        <table><thead><tr><th>Empleado</th><th>Fecha</th><th>Horas</th><th>Tipo</th><th>Estado</th><th id="hist-th-quick" style="display:none">Aprobar/Rechazar</th><th id="hist-th-acciones" style="display:none">Acciones</th></tr></thead>
         <tbody id="hist-body"></tbody></table>
       </div>
     </div>
@@ -2430,19 +2430,26 @@ function renderHistorial() {
 
   // Ocultar columnas según permisos
    document.getElementById('hist-th-acciones').style.display = puedoEditar() ? '' : 'none';
-   document.getElementById('hist-th-aprobar').style.display = puedoAprobar() ? '' : 'none';
+   document.getElementById('hist-th-quick').style.display = puedoAprobar() ? '' : 'none';
 
     const tbody=document.getElementById('hist-body');
-    if (!data.length) { tbody.innerHTML=`<tr><td colspan="5" data-label=""><div class="empty"><div class="empty-icon">🔍</div><div class="empty-text">No se encontraron registros</div></div></td></tr>`; return; }
+    if (!data.length) { tbody.innerHTML=`<tr><td colspan="6" data-label=""><div class="empty"><div class="empty-icon">🔍</div><div class="empty-text">No se encontraron registros</div></div></td></tr>`; return; }
     tbody.innerHTML=data.map(r=>{
       const emp=empleados.find(e=>e.id===r.empleadoId);
       const estadoBadge = `<span class="badge badge-${r.estado==='aprobado'?'success':r.estado==='rechazado'?'danger':'warning'}">${r.estado}</span>`;
+      const quickActions = r.estado==='pendiente' && puedoAprobar()
+        ? `<div class="actions-cell" onclick="event.stopPropagation()">
+            <button class="btn btn-success btn-sm" onclick="aprobarRegistro('${r.id}', true)">✓</button>
+            <button class="btn btn-danger btn-sm" onclick="aprobarRegistro('${r.id}', false)">✗</button>
+          </div>`
+        : '';
       return `<tr style="cursor:pointer" onclick="verDetalleRegistro('${r.id}')">
         <td data-label="Empleado"><strong>${emp?emp.nombre:'—'}</strong></td>
         <td data-label="Fecha">${fmt(r.fecha)}</td>
         <td data-label="Horas"><strong>${parseFloat(r.horas).toFixed(1)}h</strong></td>
         <td data-label="Tipo"><span class="badge badge-${r.tipo}">${r.tipo}</span></td>
         <td data-label="Estado">${estadoBadge}</td>
+        <td data-label="Aprobar/Rechazar">${quickActions}</td>
       </tr>`;
     }).join('');
     // Cargar adjuntos de cada registro visible de forma asíncrona
