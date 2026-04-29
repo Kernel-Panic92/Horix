@@ -1049,7 +1049,7 @@ async function desbloquearIP(ip) {
           <div class="table-title">Detalle</div>
           <button class="btn btn-success btn-sm" onclick="exportarCSV('reporte')">📥 Exportar</button>
         </div>
-        <table style="min-width:1380px;"><thead><tr><th>Empleado</th><th>Cargo</th><th>Sede</th><th>Período</th><th>Fecha</th><th>Horas</th><th>Tipo</th><th>Concepto</th><th>Aprobador</th><th>Estado</th><th>Motivo</th><th>Registrado por</th><th>Transporte</th><th>Observaciones</th></tr></thead>
+        <table style="min-width:800px;"><thead><tr><th>Empleado</th><th>Fecha</th><th>Horas</th><th>Tipo</th><th>Estado</th></tr></thead>
         <tbody id="rpt-body"></tbody></table>
       </div>
     </div>
@@ -2794,22 +2794,14 @@ function renderReporte() {
   const tbody=document.getElementById('rpt-body');
   if (!data.length) { tbody.innerHTML=`<tr><td colspan="12"><div class="empty"><div class="empty-icon">📊</div><div class="empty-text">Sin datos para los filtros seleccionados</div></div></td></tr>`; return; }
   tbody.innerHTML=data.map(r=>{
-    const emp=empleados.find(e=>e.id===r.empleadoId), nom=nominas.find(n=>n.id===r.nominaId);
-    const sedeTxt = r.sede||emp?.sede||'—';
+    const emp=empleados.find(e=>e.id===r.empleadoId);
+    const estadoBadge = `<span class="badge badge-${r.estado==='aprobado'?'success':r.estado==='rechazado'?'danger':'warning'}">${r.estado}</span>`;
     return `<tr>
       <td data-label="Empleado"><strong>${emp?emp.nombre:'—'}</strong></td>
-      <td data-label="Cargo">${emp?emp.cargo:'—'}</td>
-      <td data-label="Sede"><span style="font-size:12px;color:var(--accent)">📍 ${sedeTxt}</span></td>
-      <td data-label="Período">${nom?nom.nombre:'—'}</td>
       <td data-label="Fecha">${fmt(r.fecha)}</td>
       <td data-label="Horas"><strong>${parseFloat(r.horas).toFixed(1)}h</strong></td>
       <td data-label="Tipo"><span class="badge badge-${r.tipo}">${r.tipo}</span></td>
-      <td data-label="Concepto"><code style="background:var(--surface2);padding:2px 7px;border-radius:5px;font-size:12px;">${r.concepto||'—'}</code></td>
-      <td data-label="Aprobador">${r.aprobador}</td>
-      <td data-label="Motivo" style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${r.motivo}</td>
-      <td data-label="Registrado por" style="font-size:12px;color:var(--muted);"><span style="background:var(--surface2);padding:2px 7px;border-radius:5px;">${r.nombreCreador||r.creadoPor||'—'}</span></td>
-      <td data-label="Transporte">${r.transporte>0?'<strong style="color:var(--success)">'+new Intl.NumberFormat('es-CO',{style:'currency',currency:'COP',maximumFractionDigits:0}).format(r.transporte)+'</strong>':'—'}</td>
-      <td data-label="Observaciones" style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${r.observaciones||''}">${r.observaciones||'—'}</td>
+      <td data-label="Estado">${estadoBadge}</td>
     </tr>`;
   }).join('');
 }
@@ -4018,7 +4010,7 @@ function verDetalleRegistro(id) {
           <button class="btn btn-success" onclick="aprobarRegistro('${r.id}', true); document.getElementById('modal-detalle-reg')?.remove();">✓ Aprobar</button>
           <button class="btn btn-danger" onclick="aprobarRegistro('${r.id}', false); document.getElementById('modal-detalle-reg')?.remove();">✗ Rechazar</button>
         ` : ''}
-        ${puedoEditar() ? `<button class="btn btn-danger" onclick="eliminarRegistro('${r.id}'); document.getElementById('modal-detalle-reg')?.remove();">🗑 Eliminar</button>` : ''}
+        ${soyAdmin() ? `<button class="btn btn-danger" onclick="eliminarRegistro('${r.id}'); document.getElementById('modal-detalle-reg')?.remove();">🗑 Eliminar</button>` : ''}
         <button class="btn btn-secondary" onclick="document.getElementById('modal-detalle-reg')?.remove()">Cerrar</button>
       </div>
     </div>
