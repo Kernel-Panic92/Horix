@@ -1031,6 +1031,16 @@ async function desbloquearIP(ip) {
             <label>Sede</label>
             <select id="rpt-sede" onchange="renderReporte()"><option value="">Todos los centros</option></select>
           </div>
+          <div class="form-group">
+            <label>Tipo de Hora</label>
+            <select id="rpt-tipo" onchange="renderReporte()">
+              <option value="">Todos los tipos</option>
+              <option value="diurna">Diurna</option>
+              <option value="nocturna">Nocturna</option>
+              <option value="festivo">Festivo</option>
+              <option value="transporte">Transporte</option>
+            </select>
+          </div>
         </div>
       </div>
       <div class="report-summary">
@@ -2429,8 +2439,8 @@ function renderHistorial() {
   if(sedeF)  data=data.filter(r=>(r.sede||empleados.find(e=>e.id===r.empleadoId)?.sede||'')=== sedeF);
 
   // Ocultar columnas según permisos
-   document.getElementById('hist-th-acciones').style.display = puedoEditar() ? '' : 'none';
-   document.getElementById('hist-th-quick').style.display = puedoAprobar() ? '' : 'none';
+  document.getElementById('hist-th-acciones').style.display = soyAdmin() ? '' : 'none';
+  document.getElementById('hist-th-quick').style.display = puedoAprobar() ? '' : 'none';
 
     const tbody=document.getElementById('hist-body');
     if (!data.length) { tbody.innerHTML=`<tr><td colspan="6" data-label=""><div class="empty"><div class="empty-icon">🔍</div><div class="empty-text">No se encontraron registros</div></div></td></tr>`; return; }
@@ -2780,10 +2790,12 @@ function renderReporte() {
   const empId=document.getElementById('rpt-empleado').value;
   const nomId=document.getElementById('rpt-nomina').value;
   const sedeId=document.getElementById('rpt-sede').value;
+  const tipoId=document.getElementById('rpt-tipo').value;
   let data=[...registros];
   if(empId)  data=data.filter(r=>r.empleadoId===empId);
   if(nomId)  data=data.filter(r=>r.nominaId===nomId);
   if(sedeId) data=data.filter(r=>(r.sede||empleados.find(e=>e.id===r.empleadoId)?.sede||'')=== sedeId);
+  if(tipoId) data=data.filter(r=>r.tipo===tipoId);
   const totalH  =data.reduce((s,r)=>s+parseFloat(r.horas||0),0);
   const diurna  =data.filter(r=>r.tipo==='diurna').reduce((s,r)=>s+parseFloat(r.horas||0),0);
   const nocturna=data.filter(r=>r.tipo==='nocturna').reduce((s,r)=>s+parseFloat(r.horas||0),0);
