@@ -3361,12 +3361,18 @@ async function eliminarLogo() {
 async function aplicarLogo() {
   const logoEls = document.querySelectorAll('.logo,.login-logo');
   try {
-    const res = await fetch('/logo', { cache: 'no-store' });
+    const res = await fetch('/logo?t=' + Date.now(), { cache: 'no-store' });
     if (res.ok && res.headers.get('content-type')?.startsWith('image/')) {
       const blob = await res.blob();
       const url  = URL.createObjectURL(blob);
       logoEls.forEach(el => {
-        el.innerHTML = `<img src="${url}" style="max-width:160px;max-height:44px;object-fit:contain;" alt="Logo">`;
+        const img = document.createElement('img');
+        img.src = url;
+        img.style.cssText = 'max-width:160px;max-height:44px;object-fit:contain;';
+        img.alt = 'Logo';
+        img.onerror = () => { el.innerHTML = 'HORIX<span>.</span>'; };
+        el.innerHTML = '';
+        el.appendChild(img);
       });
     } else {
       logoEls.forEach(el => { el.innerHTML = 'HORIX<span>.</span>'; });
