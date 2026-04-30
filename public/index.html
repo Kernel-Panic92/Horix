@@ -3359,11 +3359,10 @@ async function eliminarLogo() {
 }
 
 async function aplicarLogo() {
-  // Actualizar logo en sidebar y login
+  const logoEls = document.querySelectorAll('.logo,.login-logo');
   try {
     const res = await fetch('/logo', { cache: 'no-store' });
-    const logoEls = document.querySelectorAll('.logo, .login-logo');
-    if (res.ok) {
+    if (res.ok && res.headers.get('content-type')?.startsWith('image/')) {
       const blob = await res.blob();
       const url  = URL.createObjectURL(blob);
       logoEls.forEach(el => {
@@ -3372,7 +3371,9 @@ async function aplicarLogo() {
     } else {
       logoEls.forEach(el => { el.innerHTML = 'HORIX<span>.</span>'; });
     }
-  } catch {}
+  } catch {
+    logoEls.forEach(el => { el.innerHTML = 'HORIX<span>.</span>'; });
+  }
 }
 
 function mostrarLogoMsg(tipo, texto) {
