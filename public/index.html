@@ -999,6 +999,10 @@ async function desbloquearIP(ip) {
           <button class="btn btn-secondary" id="btn-generar-nom" onclick="abrirModalGenerarNomina()">⚡ Generar Año</button>
           <button class="btn btn-primary"   id="btn-nuevo-nom"   onclick="abrirModalNomina()">+ Nuevo Período</button>
         </div>
+        <div style="display:flex;gap:10px;margin-top:10px;" id="nom-delete-year">
+          <input type="number" id="nom-delete-year" placeholder="Año (ej: 2025)" min="2020" max="2030" style="width:140px;padding:8px 12px;border:1px solid var(--border);border-radius:8px;background:var(--surface2);color:var(--text);font-size:14px;">
+          <button class="btn btn-danger" onclick="eliminarNominaPorAnio()">🗑️ Eliminar Año</button>
+        </div>
       </div>
       <div id="nomina-container"></div>
     </div>
@@ -2256,469 +2260,42 @@ async function guardarRegistro() {
         method: 'POST',
         headers: { 'Authorization': 'Bearer ' + sesion.token },
         body: fd
-      });
-    }
-    limpiarFormulario(); showToast('✓ Registro guardado' + (archivos.length ? ` con ${archivos.length} adjunto(s).` : '.'));
-  } catch(e) { showToast(e.message,'error'); }
-  setLoading('btn-guardar-reg',false);
-}
-function limpiarFormulario() {
-  ['reg-empleado','reg-nomina','reg-tipo'].forEach(id=>document.getElementById(id).value='');
-  ['reg-fecha','reg-horas','reg-aprobador','reg-concepto','reg-motivo','reg-observaciones','reg-transporte'].forEach(id=>document.getElementById(id).value='');
-  document.getElementById('wrap-transporte').style.display='none';
-  document.getElementById('reg-horas').closest('.form-group').style.opacity='';
-  document.getElementById('reg-horas').closest('.form-group').style.pointerEvents='';
-  document.getElementById('reg-sede').value='';
-  document.getElementById('reg-emp-search').value='';
-  document.getElementById('reg-empleado').value='';
-  adjuntosSeleccionados = [];
-  document.getElementById('adjuntos-lista').innerHTML = '';
-  document.getElementById('adjuntos-input').value = '';
-}
-
-// ═══════════════════════════════════════════════════
-// ADJUNTOS
-// ═══════════════════════════════════════════════════
-let adjuntosSeleccionados = [];
-
-function iconoMime(mime) {
-  if (mime.startsWith('image/')) return '🖼️';
-  if (mime === 'application/pdf') return '📄';
-  if (mime.includes('word')) return '📝';
-  if (mime.includes('excel') || mime.includes('spreadsheet')) return '📊';
-  return '📎';
-}
-function formatBytes(b) {
-  if (b < 1024) return b + ' B';
-  if (b < 1024*1024) return (b/1024).toFixed(1) + ' KB';
-  return (b/(1024*1024)).toFixed(1) + ' MB';
-}
-
-function onAdjuntosSelect(event) {
-  agregarArchivos(Array.from(event.target.files));
-}
-function onAdjuntosDrop(event) {
-  event.preventDefault();
-  document.getElementById('adjuntos-drop-zone').style.borderColor = 'var(--border)';
-  agregarArchivos(Array.from(event.dataTransfer.files));
-}
-function agregarArchivos(files) {
-  const permitidos = ['image/jpeg','image/png','image/gif','image/webp','application/pdf',
-    'application/msword','application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-    'application/vnd.ms-excel','application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-    'text/plain','text/csv'];
-  const maxSize = 10 * 1024 * 1024;
-  let errores = [];
-  files.forEach(f => {
-    if (!permitidos.includes(f.type)) { errores.push(`"${f.name}" tiene un tipo no permitido.`); return; }
-    if (f.size > maxSize) { errores.push(`"${f.name}" supera el límite de 10 MB.`); return; }
-    if (adjuntosSeleccionados.find(a => a.name === f.name && a.size === f.size)) return; // duplicado
-    adjuntosSeleccionados.push(f);
-  });
-  if (errores.length) showToast(errores[0], 'error');
-  renderAdjuntosSeleccionados();
-}
-function renderAdjuntosSeleccionados() {
-  const lista = document.getElementById('adjuntos-lista');
-  if (!adjuntosSeleccionados.length) { lista.innerHTML = ''; return; }
-  lista.innerHTML = adjuntosSeleccionados.map((f, i) => `
-    <div style="display:flex;align-items:center;gap:10px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 12px;">
-      <span style="font-size:18px;">${iconoMime(f.type)}</span>
-      <div style="flex:1;min-width:0;">
-        <div style="font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${f.name}">${f.name}</div>
-        <div style="font-size:11px;color:var(--muted);">${formatBytes(f.size)}</div>
-      </div>
-      <button onclick="quitarAdjunto(${i})" style="background:none;border:none;cursor:pointer;color:var(--danger);font-size:16px;padding:0 4px;" title="Quitar">✕</button>
-    </div>`).join('');
-}
-function quitarAdjunto(i) {
-  adjuntosSeleccionados.splice(i, 1);
-  renderAdjuntosSeleccionados();
-}
-
-// Carga y muestra adjuntos en la celda del historial
-async function cargarAdjuntosEnCelda(regId) {
-  const celda = document.getElementById(`adj-cell-${regId}`);
-  if (!celda) return;
-  try {
-    const res = await fetch(`/api/registros/${regId}/adjuntos`, { headers: { 'Authorization': 'Bearer ' + sesion.token } });
-    const adjuntos = await res.json();
-    if (!adjuntos.length) { celda.innerHTML = '<span style="color:var(--muted);font-size:12px;">—</span>'; return; }
-    celda.innerHTML = `<button class="btn btn-secondary btn-sm" onclick="abrirModalAdjuntos('${regId}')" style="font-size:11px;padding:3px 8px;">
-      📎 ${adjuntos.length}
-    </button>`;
-    celda.dataset.adjuntos = JSON.stringify(adjuntos);
-  } catch { celda.innerHTML = '<span style="color:var(--muted);font-size:12px;">—</span>'; }
-}
-
-// Modal para ver adjuntos de un registro existente
-function abrirModalAdjuntos(regId) {
-  const celda = document.getElementById(`adj-cell-${regId}`);
-  const adjs = celda?.dataset.adjuntos ? JSON.parse(celda.dataset.adjuntos) : [];
-  const puedeElim = sesion?.rol === 'admin' || sesion?.rol === 'rrhh';
-  const contenido = adjs.map(a => `
-    <div style="display:flex;align-items:center;gap:10px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 14px;margin-bottom:8px;">
-      <span style="font-size:20px;">${iconoMime(a.mime)}</span>
-      <div style="flex:1;min-width:0;">
-        <div style="font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${a.nombre}">${a.nombre}</div>
-        <div style="font-size:11px;color:var(--muted);">${formatBytes(a.tamano)} · ${new Date(a.subido).toLocaleString('es-CO')}</div>
-      </div>
-      <button onclick="descargarAdjuntoAuth('${a.id}','${a.nombre}')"
-        style="background:var(--accent);color:#fff;border:none;border-radius:7px;padding:5px 10px;font-size:12px;cursor:pointer;">
-        ⬇ Descargar
-      </button>
-      ${puedeElim ? `<button onclick="eliminarAdjunto('${a.id}','${regId}')" style="background:var(--danger);color:#fff;border:none;border-radius:7px;padding:5px 10px;font-size:12px;cursor:pointer;">🗑</button>` : ''}
-    </div>`).join('');
-  // Reutilizar el sistema de modal existente (confirmar) como contenedor informativo
-  const overlay = document.createElement('div');
-  overlay.id = 'adj-modal-overlay';
-  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9000;display:flex;align-items:center;justify-content:center;';
-  overlay.innerHTML = `
-    <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:28px;width:min(520px,92vw);max-height:80vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.5);">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;">
-        <h3 style="margin:0;font-size:16px;">📎 Archivos Adjuntos</h3>
-        <button onclick="document.getElementById('adj-modal-overlay').remove()" style="background:none;border:none;cursor:pointer;font-size:20px;color:var(--muted);">✕</button>
-      </div>
-      ${contenido}
-    </div>`;
-  document.body.appendChild(overlay);
-  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
-}
-
-async function descargarAdjuntoAuth(adjId, nombre) {
-  try {
-    const res = await fetch(`/api/adjuntos/${adjId}/descargar`, {
-      headers: { 'Authorization': 'Bearer ' + sesion.token }
-    });
-    if (!res.ok) { showToast('No se pudo descargar el archivo.', 'error'); return; }
-    const blob = await res.blob();
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = nombre;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 5000);
-  } catch(e) { showToast('Error al descargar: ' + e.message, 'error'); }
-}
-
-async function eliminarAdjunto(adjId, regId) {
-  if (!confirm('¿Eliminar este adjunto?')) return;
-  try {
-    const res = await fetch(`/api/adjuntos/${adjId}`, { method: 'DELETE', headers: { 'Authorization': 'Bearer ' + sesion.token } });
-    if (!res.ok) { const d = await res.json(); showToast(d.error || 'Error al eliminar', 'error'); return; }
-    document.getElementById('adj-modal-overlay')?.remove();
-    await cargarAdjuntosEnCelda(regId);
-    // Refrescar el botón del modal si hay más adjuntos
-    const celda = document.getElementById(`adj-cell-${regId}`);
-    if (celda?.dataset.adjuntos) {
-      const adjs = JSON.parse(celda.dataset.adjuntos).filter(a => a.id !== adjId);
-      celda.dataset.adjuntos = JSON.stringify(adjs);
-      if (adjs.length) abrirModalAdjuntos(regId);
-    }
-    showToast('Adjunto eliminado.');
-  } catch(e) { showToast(e.message, 'error'); }
-}
-
-// ═══════════════════════════════════════════════════
-// HISTORIAL
-// ═══════════════════════════════════════════════════
-function renderHistorial() {
-  populateHistorialFilters();
-  const buscar=document.getElementById('fil-buscar').value.toLowerCase();
-  const tipo  =document.getElementById('fil-tipo').value;
-  const nomId =document.getElementById('fil-nomina').value;
-  const empId =document.getElementById('fil-empleado').value;
-  const sedeF=document.getElementById('fil-sede')?.value||'';
-  let data=[...registros];
-  if(buscar) data=data.filter(r=>{const e=empleados.find(e=>e.id===r.empleadoId);return e&&e.nombre.toLowerCase().includes(buscar);});
-  if(tipo)   data=data.filter(r=>r.tipo===tipo);
-  if(nomId)  data=data.filter(r=>r.nominaId===nomId);
-  if(empId)  data=data.filter(r=>r.empleadoId===empId);
-  if(sedeF)  data=data.filter(r=>(r.sede||empleados.find(e=>e.id===r.empleadoId)?.sede||'')=== sedeF);
-
-  // Ocultar columnas según permisos
-  document.getElementById('hist-th-acciones').style.display = soyAdmin() ? '' : 'none';
-  document.getElementById('hist-th-quick').style.display = puedoAprobar() ? '' : 'none';
-
-    const tbody=document.getElementById('hist-body');
-    if (!data.length) { tbody.innerHTML=`<tr><td colspan="6" data-label=""><div class="empty"><div class="empty-icon">🔍</div><div class="empty-text">No se encontraron registros</div></div></td></tr>`; return; }
-    tbody.innerHTML=data.map(r=>{
-      const emp=empleados.find(e=>e.id===r.empleadoId);
-      const estadoBadge = `<span class="badge badge-${r.estado==='aprobado'?'success':r.estado==='rechazado'?'danger':'warning'}">${r.estado}</span>`;
-      const quickActions = r.estado==='pendiente' && puedoAprobar()
-        ? `<div class="actions-cell" onclick="event.stopPropagation()">
-            <button class="btn btn-success btn-sm" onclick="aprobarRegistro('${r.id}', true)">✓</button>
-            <button class="btn btn-danger btn-sm" onclick="aprobarRegistro('${r.id}', false)">✗</button>
-          </div>`
-        : '';
-      // Acción de eliminar (solo para admin)
-      const deleteAction = puedoEditar() && soyAdmin()
-        ? `<button class="btn btn-danger btn-sm" onclick="event.stopPropagation(); eliminarRegistro('${r.id}')">🗑️</button>`
-        : '';
-      return `<tr style="cursor:pointer" onclick="verDetalleRegistro('${r.id}')">
-        <td data-label="Empleado"><strong>${emp?emp.nombre:'—'}</strong></td>
-        <td data-label="Fecha">${fmt(r.fecha)}</td>
-        <td data-label="Horas"><strong>${parseFloat(r.horas).toFixed(1)}h</strong></td>
-        <td data-label="Tipo"><span class="badge badge-${r.tipo}">${r.tipo}</span></td>
-        <td data-label="Estado">${estadoBadge}</td>
-        <td data-label="Aprobar/Rechazar">${quickActions}</td>
-        <td data-label="Acciones">${deleteAction}</td>
-      </tr>`;
-    }).join('');
-    // Cargar adjuntos de cada registro visible de forma asíncrona
-    data.forEach(r => cargarAdjuntosEnCelda(r.id));
-  }
-async function eliminarRegistro(id) {
-  confirmar({
-    titulo: 'Eliminar Registro',
-    mensaje: '¿Estás seguro de que deseas eliminar este registro de horas extra? Esta acción no se puede deshacer.',
-    onConfirm: async () => {
-      try { await DEL('/api/registros/'+id); await loadAll(); renderHistorial(); showToast('Registro eliminado.'); }
-      catch(e) { showToast(e.message,'error'); }
-    }
   });
 }
-
-// ═══════════════════════════════════════════════════
-// EMPLEADOS
-// ═══════════════════════════════════════════════════
-function renderEmpleados() {
-  const search = document.getElementById('emp-search');
-  if (search) search.value = ''; // limpiar buscador al recargar
-  buscarEmpleados();
-}
-
-function buscarEmpleados() {
-  const q = (document.getElementById('emp-search')?.value || '').toLowerCase().trim();
-  const lista = q
-    ? empleados.filter(e =>
-        e.nombre.toLowerCase().includes(q) ||
-        (e.cargo||'').toLowerCase().includes(q) ||
-        (e.departamento||'').toLowerCase().includes(q) ||
-        (e.sede||'').toLowerCase().includes(q) ||
-        (e.email||'').toLowerCase().includes(q) ||
-        (e.cedula||'').toLowerCase().includes(q)
-      )
-    : empleados;
-
-  const grid=document.getElementById('emp-grid');
-  const countEl = document.getElementById('emp-count');
-  document.getElementById('btn-nuevo-emp').style.display = puedoEditar() ? '' : 'none';
-  const btnImp = document.getElementById('btn-importar-emp');
-if (btnImp) btnImp.style.display = soyAdmin() ? '' : 'none';
-  document.getElementById('emp-perm-banner').classList.toggle('show', !puedoEditar());
-
-  if (countEl) countEl.textContent = q ? `${lista.length} de ${empleados.length} empleados` : `${empleados.length} empleados`;
-
-  if (!lista.length) {
-    grid.innerHTML = q
-      ? `<div class="empty" style="grid-column:1/-1"><div class="empty-icon">🔍</div><div class="empty-text">Sin resultados para "${q}"</div></div>`
-      : `<div class="empty" style="grid-column:1/-1"><div class="empty-icon">👤</div><div class="empty-text">No hay empleados registrados</div></div>`;
+async function eliminarNominaPorAnio() {
+  const anio = document.getElementById('nom-delete-year')?.value?.trim();
+  if (!anio || !/^\d{4}$/.test(anio)) {
+    showToast('Ingresa un año válido (ej: 2025)', 'error');
     return;
   }
-  grid.innerHTML=lista.map(e=>{
-    const initials=e.nombre.split(' ').map(p=>p[0]).join('').slice(0,2).toUpperCase();
-    const totalH=registros.filter(r=>r.empleadoId===e.id).reduce((s,r)=>s+parseFloat(r.horas||0),0);
-    const totalR=registros.filter(r=>r.empleadoId===e.id).length;
-    const acciones = puedoEditar()
-      ? `<button class="btn btn-secondary btn-sm" onclick="editarEmpleado('${e.id}')">✏ Editar</button>
-         ${soyAdmin()?`<button class="btn btn-danger btn-sm" onclick="eliminarEmpleado('${e.id}')">🗑</button>`:''}`
-      : `<span style="font-size:12px;color:var(--muted)">Solo lectura</span>`;
-    return `<div class="emp-card">
-      <div class="emp-avatar" style="background:${empColor(e.nombre)}">${initials}</div>
-      <div class="emp-name">${e.nombre}</div>
-      <div class="emp-dept">${e.cargo} · ${e.departamento}</div>
-      <div style="font-size:11px;color:var(--accent);margin-top:2px;">📍 ${e.sede||'—'}</div>
-      <div class="emp-stats">
-        <div class="emp-stat"><strong>${totalH.toFixed(1)}</strong>Total Horas</div>
-        <div class="emp-stat"><strong>${totalR}</strong>Registros</div>
-      </div>
-      ${e.email?`<div style="font-size:12px;color:var(--muted);margin-top:8px;">✉ ${e.email}</div>`:''}
-      <div class="emp-actions">${acciones}</div>
-    </div>`;
-  }).join('');
-}
-function abrirModalEmpleado(id=null) {
-  editEmpId=id;
-  document.getElementById('modal-emp-title').textContent=id?'Editar Empleado':'Nuevo Empleado';
-  if (id) {
-    const e=empleados.find(e=>e.id===id);
-    document.getElementById('emp-nombre').value=e.nombre;
-    document.getElementById('emp-cedula').value=e.cedula;
-    document.getElementById('emp-cargo').value=e.cargo;
-    document.getElementById('emp-depto').value=e.departamento;
-    document.getElementById('emp-email').value=e.email||'';
-    document.getElementById('emp-tel').value=e.telefono||'';
-    document.getElementById('emp-sede').value=e.sede||'';
-  } else {
-    ['emp-nombre','emp-cedula','emp-cargo','emp-depto','emp-email','emp-tel'].forEach(i=>document.getElementById(i).value='');
-    document.getElementById('emp-sede').value='';
-  }
-  document.getElementById('modal-empleado').classList.add('open');
-}
-function editarEmpleado(id) { abrirModalEmpleado(id); }
-async function guardarEmpleado() {
-  const nombre=document.getElementById('emp-nombre').value.trim();
-  const cedula=document.getElementById('emp-cedula').value.trim();
-  const cargo =document.getElementById('emp-cargo').value.trim();
-  const depto =document.getElementById('emp-depto').value.trim();
-  const email =document.getElementById('emp-email').value.trim();
-  const tel   =document.getElementById('emp-tel').value.trim();
-  const sede  =document.getElementById('emp-sede').value;
-  if (!nombre||!cedula||!cargo||!depto||!sede) { showToast('Completa los campos obligatorios incluyendo sede.','error'); return; }
-  setLoading('btn-guardar-emp',true);
-  try {
-    const body={nombre,cedula,cargo,departamento:depto,sede,email,telefono:tel};
-    if (editEmpId) await PUT('/api/empleados/'+editEmpId, body);
-    else           await POST('/api/empleados', body);
-    cerrarModal('modal-empleado'); await loadAll(); renderEmpleados();
-    showToast(editEmpId?'Empleado actualizado.':'Empleado registrado.');
-  } catch(e) { showToast(e.message,'error'); }
-  setLoading('btn-guardar-emp',false);
-}
-async function eliminarEmpleado(id) {
-  confirmar({
-    titulo: 'Eliminar Empleado',
-    mensaje: '¿Estás seguro de que deseas eliminar este empleado? También se eliminarán todos sus registros de horas extra.',
-    icono: '👤',
-    onConfirm: async () => {
-      try { await DEL('/api/empleados/'+id); await loadAll(); renderEmpleados(); showToast('Empleado eliminado.'); }
-      catch(e) { showToast(e.message,'error'); }
-    }
-  });
-}
-
-// ═══════════════════════════════════════════════════
-// NÓMINA
-// ═══════════════════════════════════════════════════
-// Estado colapso por año (persiste en la sesión)
-
-function toggleNomAnio(anio) {
-  _nomCollapsed[anio] = !_nomCollapsed[anio];
-  const body    = document.getElementById('nom-body-' + anio);
-  const chevron = document.getElementById('nom-chev-' + anio);
-  const collapsed = _nomCollapsed[anio];
-  if (collapsed) {
-    body.style.maxHeight = body.scrollHeight + 'px'; // fijar antes de animar
-    requestAnimationFrame(() => {
-      body.classList.add('collapsed');
-      chevron.classList.add('collapsed');
-    });
-  } else {
-    body.classList.remove('collapsed');
-    chevron.classList.remove('collapsed');
-    body.style.maxHeight = body.scrollHeight + 'px';
-    body.addEventListener('transitionend', () => { body.style.maxHeight = 'none'; }, { once: true });
-  }
-}
-
-function renderNomina() {
-  const cont = document.getElementById('nomina-container');
-  document.getElementById('btn-nuevo-nom').style.display   = puedoEditar() ? '' : 'none';
-  document.getElementById('btn-generar-nom').style.display = puedoEditar() ? '' : 'none';
-
-  if (!nominas.length) {
-    cont.innerHTML = `<div class="table-wrap"><div class="empty"><div class="empty-icon">💼</div><div class="empty-text">No hay períodos registrados</div></div></div>`;
+  const nominasDelAnio = nominas.filter(n => n.inicio.startsWith(anio));
+  if (!nominasDelAnio.length) {
+    showToast(`No hay períodos para el año ${anio}`, 'error');
     return;
   }
-
-  const ordenados  = [...nominas].sort((a,b) => a.inicio.localeCompare(b.inicio));
-  const porAnio    = {};
-  ordenados.forEach(n => {
-    const anio = n.inicio.slice(0,4);
-    if (!porAnio[anio]) porAnio[anio] = [];
-    porAnio[anio].push(n);
-  });
-
-  const anioActual = String(new Date().getFullYear());
-
-  cont.innerHTML = Object.keys(porAnio).sort((a,b) => b - a).map(anio => {
-    const lista    = porAnio[anio];
-    const esActual = anio === anioActual;
-
-    // Año actual abierto por defecto, años pasados/futuros colapsados
-    if (_nomCollapsed[anio] === undefined) _nomCollapsed[anio] = !esActual;
-    const collapsed = _nomCollapsed[anio];
-
-    const totalAnioH = lista.reduce((s,n) =>
-      s + registros.filter(r => r.nominaId === n.id).reduce((ss,r) => ss + parseFloat(r.horas||0), 0), 0);
-
-    const filas = lista.map(n => {
-      const regs   = registros.filter(r => r.nominaId === n.id);
-      const totalH = regs.reduce((s,r) => s + parseFloat(r.horas||0), 0);
-      const acc    = soyAdmin()
-        ? `<td><div class="actions-cell"><button class="btn btn-danger btn-sm" onclick="eliminarNomina('${n.id}')">🗑</button></div></td>`
-        : '<td></td>';
-      return `<tr>
-        <td><strong>${n.nombre}</strong></td>
-        <td><span class="badge badge-${n.tipo}">${n.tipo}</span></td>
-        <td>${fmt(n.inicio)}</td><td>${fmt(n.fin)}</td>
-        <td>${regs.length}</td>
-        <td><strong>${totalH.toFixed(1)}h</strong></td>
-        ${acc}
-      </tr>`;
-    }).join('');
-
-    return `<div class="table-wrap" style="margin-bottom:14px;overflow:hidden;">
-      <div class="nom-anio-header table-head" style="padding:14px 20px;" onclick="toggleNomAnio('${anio}')">
-        <div class="table-title" style="display:flex;align-items:center;gap:10px;">
-          <span id="nom-chev-${anio}" class="nom-chevron${collapsed?' collapsed':''}">▾</span>
-          📅 ${anio}
-          ${esActual ? '<span style="font-size:11px;background:rgba(79,142,247,0.15);color:var(--accent);padding:2px 9px;border-radius:20px;font-weight:500;">Año actual</span>' : ''}
-        </div>
-        <span style="font-size:13px;color:var(--muted);">${lista.length} períodos · <strong style="color:var(--text)">${totalAnioH.toFixed(1)}h</strong> totales</span>
-      </div>
-      <div id="nom-body-${anio}" class="nom-anio-body${collapsed?' collapsed':''}" style="max-height:${collapsed?'0':  'none'};">
-        <table>
-          <thead><tr>
-            <th>Nombre</th><th>Tipo</th><th>Inicio</th><th>Fin</th>
-            <th>Registros</th><th>Total Horas</th>
-            <th style="${soyAdmin()?'':'display:none'}">Acciones</th>
-          </tr></thead>
-          <tbody>${filas}</tbody>
-        </table>
-      </div>
-    </div>`;
-  }).join('');
-}
-function abrirModalNomina() {
-  ['nom-nombre','nom-inicio','nom-fin'].forEach(i=>document.getElementById(i).value='');
-  document.getElementById('nom-tipo').value='quincenal';
-  document.getElementById('modal-nomina').classList.add('open');
-}
-async function guardarNomina() {
-  const nombre=document.getElementById('nom-nombre').value.trim();
-  const tipo  =document.getElementById('nom-tipo').value;
-  const inicio=document.getElementById('nom-inicio').value;
-  const fin   =document.getElementById('nom-fin').value;
-  if (!nombre||!inicio||!fin) { showToast('Completa todos los campos.','error'); return; }
-  if (inicio>fin) { showToast('La fecha inicio debe ser anterior al fin.','error'); return; }
-  setLoading('btn-guardar-nom',true);
-  try {
-    await POST('/api/nominas',{nombre,tipo,inicio,fin});
-    cerrarModal('modal-nomina'); await loadAll(); renderNomina(); showToast('Período creado.');
-  } catch(e) { showToast(e.message,'error'); }
-  setLoading('btn-guardar-nom',false);
-}
-async function eliminarNomina(id) {
-  const regs=registros.filter(r=>r.nominaId===id).length;
-  const msgNom = regs > 0
-    ? `Este período tiene ${regs} registro(s) asociado(s). ¿Estás seguro de que deseas eliminarlo?`
-    : '¿Estás seguro de que deseas eliminar este período de nómina?';
   confirmar({
-    titulo: 'Eliminar Período',
-    mensaje: msgNom,
-    icono: '💰',
+    titulo: `Eliminar Períodos ${anio}`,
+    mensaje: `¿Estás seguro de que deseas eliminar TODOS los períodos del año ${anio}? (${nominasDelAnio.length} períodos)\n\nEsta acción no se puede deshacer.`,
+    icono: '⚠️',
+    btnTxt: 'Eliminar Año',
     onConfirm: async () => {
-      try { await DEL('/api/nominas/'+id); await loadAll(); renderNomina(); showToast('Período eliminado.'); }
-      catch(e) { showToast(e.message,'error'); }
+      try {
+        let eliminados = 0, errores = 0;
+        for (const nom of nominasDelAnio) {
+          try {
+            await DEL(`/api/nominas/${nom.id}`);
+            eliminados++;
+          } catch { errores++; }
+        }
+        await loadAll();
+        renderNomina();
+        showToast(`✓ ${eliminados} períodos eliminados${errores > 0 ? `, ${errores} errores` : ''}`);
+        document.getElementById('nom-delete-year').value = '';
+      } catch(e) { showToast(e.message, 'error'); }
     }
   });
 }
-
-// ═══════════════════════════════════════════════════
+// ═══════════════════════════════════════════
 // REPORTES
 // ═══════════════════════════════════════════════════
 // Cerrar dropdowns reporte al hacer clic fuera
