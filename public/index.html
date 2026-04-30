@@ -992,15 +992,16 @@ async function desbloquearIP(ip) {
     </div>
 
     <!-- NÓMINA -->
-    <div class="page" id="page-nomina">
-      <div class="page-header" style="display:flex;justify-content:space-between;align-items:flex-start;">
-        <div><div class="page-title">Períodos de Nómina</div><div class="page-sub">Administra los cortes de liquidación</div></div>
-        <div style="display:flex;gap:10px;" id="nom-btns">
-          <button class="btn btn-secondary" id="btn-generar-nom" onclick="abrirModalGenerarNomina()">⚡ Generar Año</button>
-          <button class="btn btn-primary"   id="btn-nuevo-nom"   onclick="abrirModalNomina()">+ Nuevo Período</button>
-        </div>
+        <div class="page-header" style="display:flex;justify-content:space-between;align-items:flex-start;">
+      <div><div class="page-title">Períodos de Nómina</div><div class="page-sub">Administra los cortes de liquidación</div></div>
+      <div style="display:flex;gap:10px;" id="nom-btns">
+        <button class="btn btn-secondary" id="btn-generar-nom" onclick="abrirModalGenerarNomina()">⚡ Generar Año</button>
+        <button class="btn btn-primary"   id="btn-nuevo-nom"   onclick="abrirModalNomina()">+ Nuevo Período</button>
       </div>
-      <div id="nomina-container"></div>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:10px;" id="nom-delete-year">
+      <input type="number" id="nom-delete-year" placeholder="Año (ej: 2025)" min="2020" max="2030" style="width:140px;padding:8px 12px;border:1px solid var(--border);border-radius:8px;background:var(--surface2);color:var(--text);font-size:14px;">
+      <button class="btn btn-danger" onclick="eliminarNominaPorAnio()">🗑️ Eliminar Año</button>
     </div>
 
     <!-- REPORTES -->
