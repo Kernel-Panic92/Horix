@@ -3188,11 +3188,13 @@ async function testSmtp() {
 // ═══════════════════════════════════════════════════
 function cerrarModal(id) { document.getElementById(id).classList.remove('open'); }
 
-function confirmar({ titulo, mensaje, icono = '🗑', btnTxt = 'Eliminar', onConfirm }) {
+function confirmar({ titulo, mensaje, icono = '🗑️', btnTxt, onConfirm }) {
   document.getElementById('confirm-title').textContent = titulo;
   document.getElementById('confirm-msg').textContent   = mensaje;
   document.getElementById('confirm-icon').textContent  = icono;
-  document.getElementById('confirm-btn').textContent   = btnTxt;
+  // Determinar texto del botón: usar btnTxt o inferir del título
+  const finalBtnTxt = btnTxt || (titulo.includes('Aprobar') ? 'Aprobar' : titulo.includes('Rechazar') ? 'Rechazar' : 'Eliminar');
+  document.getElementById('confirm-btn').textContent   = finalBtnTxt;
   const btn = document.getElementById('confirm-btn');
   const nuevoBtn = btn.cloneNode(true); // quitar listeners anteriores
   btn.parentNode.replaceChild(nuevoBtn, btn);
@@ -3895,6 +3897,7 @@ async function aprobarRegistro(id, aprobar) {
     titulo: accion.charAt(0).toUpperCase() + accion.slice(1) + ' Registro',
     mensaje: `¿Estás seguro de que deseas ${accion} este registro?`,
     icono: aprobar ? '✓' : '✗',
+    btnTxt: aprobar ? 'Aprobar' : 'Rechazar',
     onConfirm: async () => {
       const obs = document.getElementById('confirm-obs')?.value || '';
       try {
