@@ -3,7 +3,7 @@
 ## Pendientes / Known Issues
 
 ### Críticos
-- [ ] **Logo no se actualiza tras subir** - Al subir un logo, los cambios no se reflejan inmediatamente. Posiblemente `aplicarLogo()` no se está llamando después del upload exitoso.
+- [x] **Logo no cargaba por HTTPS** - Nginx servía `index.html` en lugar de proxy `/logo` a Node.js. **Fix:** Agregada regla `location = /logo` en `/etc/nginx/sites-available/horix` para proxy pass a Node.js.
 
 ### Medios
 - [ ] **Código de debug en producción** - `server.js:879` tiene `console.log('DEBUG req.body:', req.body)` que debe eliminarse
@@ -22,8 +22,10 @@
 ## Fixes Aplicados
 
 ### 2026-04-30
+- **Logo no cargaba por HTTPS** - El endpoint `/logo` era interceptado por nginx `try_files` que devolvía `index.html`. **Fix:** Agregada regla `location = /logo` en nginx para proxy pass a Node.js. Archivo: `/etc/nginx/sites-available/horix`
 - **Logo roto (frontend)** - Corregido `aplicarLogo()` en `public/index.html`:
   - Se corrigió el selector CSS en `querySelectorAll` (se quitó el espacio antes de `.login-logo`)
   - Se valida que el contenido sea `image/*` antes de crear el `<img>`
   - El `catch` ahora restaura el texto "HORIX." en lugar de quedar vacío
-  - Archivos: `public/index.html:3361-3376`
+  - Agregado manejo `onerror` en la imagen y cache-busting con `?t=` timestamp
+  - Archivos: `public/index.html:3361-3385`
