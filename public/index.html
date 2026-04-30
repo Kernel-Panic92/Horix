@@ -2619,6 +2619,9 @@ function renderNomina() {
   const cont = document.getElementById('nomina-container');
   document.getElementById('btn-nuevo-nom').style.display   = puedoEditar() ? '' : 'none';
   document.getElementById('btn-generar-nom').style.display = puedoEditar() ? '' : 'none';
+  // Ocultar botón eliminar año solo para Admin
+  const delYear = document.getElementById('nom-delete-year');
+  if (delYear) delYear.parentElement.style.display = soyAdmin() ? '' : 'none';
 
   if (!nominas.length) {
     cont.innerHTML = `<div class="table-wrap"><div class="empty"><div class="empty-icon">💼</div><div class="empty-text">No hay períodos registrados</div></div></div>`;
