@@ -3050,7 +3050,6 @@ function editarUsuario(id) { abrirModalUsuario(id); }
 async function guardarUsuario() {
   const nombre  =document.getElementById('usr-nombre').value.trim();
   const email   =document.getElementById('usr-email').value.trim();
-  const password=document.getElementById('usr-password').value;
   const rol     =document.getElementById('usr-rol').value;
   const sede    =document.getElementById('usr-sede').value;
   const activo  =document.getElementById('usr-activo').value==='1';
@@ -3059,11 +3058,20 @@ async function guardarUsuario() {
   try {
     let idGuardado = editUsrId;
     if (editUsrId) {
-      await PUT('/api/usuarios/'+editUsrId, {nombre, email, rol, sede, activo, password});
+      await PUT('/api/usuarios/'+editUsrId, {nombre, email, rol, sede, activo});
     } else {
       const res = await POST('/api/usuarios', {nombre, email, rol, sede});
       idGuardado = res.id;
     }
+    // Guardar asignaciones de empleados
+    if (idGuardado) {
+      await PUT('/api/usuario_empleados/' + idGuardado, { empleados: [..._empAsigSeleccionados] });
+    }
+    cerrarModal('modal-usuario'); await loadAll(); renderUsuarios();
+    showToast(editUsrId?'Usuario actualizado.':'Usuario creado. Se envió correo de bienvenida.');
+  } catch(e) { showToast(e.message,'error'); }
+  setLoading('btn-guardar-usr',false);
+}
     // Guardar asignaciones de empleados
     if (idGuardado) {
       await PUT('/api/usuario_empleados/' + idGuardado, { empleados: [..._empAsigSeleccionados] });
