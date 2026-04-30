@@ -1246,6 +1246,7 @@ app.get('/logo', (req, res) => {
   for (const ext of exts) {
     const p = LOGO_PATH + ext;
     if (fs.existsSync(p)) {
+      console.log('[Logo] Sirviendo logo:', p);
       const mime = ext === '.svg' ? 'image/svg+xml'
                  : ext === '.webp' ? 'image/webp'
                  : ext === '.jpg' || ext === '.jpeg' ? 'image/jpeg'
@@ -1253,6 +1254,7 @@ app.get('/logo', (req, res) => {
       return res.set('Content-Type', mime).set('Cache-Control', 'no-store').sendFile(p);
     }
   }
+  console.log('[Logo] No se encontró logo en:', LOGO_PATH + '.*');
   res.status(404).json({ error: 'Sin logo' });
 });
 
@@ -1264,13 +1266,15 @@ app.post('/api/logo', soloAdmin, upload.single('logo'), (req, res) => {
              : mime === 'image/webp'    ? '.webp'
              : mime === 'image/jpeg'    ? '.jpg'
              : '.png';
+  console.log('[Logo] Subiendo logo:', req.file.originalname, '->', ext, '(' + req.file.size + ' bytes)');
   // Borrar logos anteriores
   ['.png','.jpg','.jpeg','.svg','.webp'].forEach(e => {
     const p = LOGO_PATH + e;
-    if (fs.existsSync(p)) fs.unlinkSync(p);
+    if (fs.existsSync(p)) { fs.unlinkSync(p); console.log('[Logo] Borrado anterior:', p); }
   });
   const dest = LOGO_PATH + ext;
   fs.writeFileSync(dest, req.file.buffer);
+  console.log('[Logo] Logo guardado en:', dest, 'Existe:', fs.existsSync(dest));
   res.json({ ok: true });
 });
 
