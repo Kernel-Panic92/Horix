@@ -1596,9 +1596,9 @@ function soyOperador() { return sesion?.rol === 'operador'; }
 // AUTH
 // ═══════════════════════════════════════════════════
 async function doLogin() {
-  const email    = document.getElementById('login-email').value.trim();
+  const email = document.getElementById('login-email').value.trim();
   const password = document.getElementById('login-password').value;
-  const errEl    = document.getElementById('login-error');
+  const errEl = document.getElementById('login-error');
   const btnLogin = document.getElementById('btn-login');
   errEl.classList.remove('show');
   if (!email||!password) { errEl.textContent='Ingresa tu correo y contraseña.'; errEl.classList.add('show'); return; }
@@ -1623,10 +1623,10 @@ async function doLogin() {
       setLoading('btn-login', false);
       return;
     }
-    sesion = { token: json.token, ...json.usuario };
+    sesion = { token: json.token, usuario: json.usuario };
     localStorage.setItem('he_sesion', JSON.stringify(sesion));
     iniciarApp();
-  } catch {
+  } catch (e) {
     errEl.textContent = 'No se pudo conectar al servidor.';
     errEl.classList.add('show');
   }
