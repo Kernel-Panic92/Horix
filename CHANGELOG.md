@@ -6,7 +6,6 @@
 - [x] **Logo no cargaba por HTTPS** - Nginx servía `index.html` en lugar de proxy `/logo` a Node.js. **Fix:** Agregada regla `location = /logo` en `/etc/nginx/sites-available/horix` para proxy pass a Node.js.
 
 ### Medios
-- [ ] **Código de debug en producción** - `server.js:879` tiene `console.log('DEBUG req.body:', req.body)` que debe eliminarse
 - [ ] **URLs hardcodeadas** - La dirección `horixvitamar.fortiddns.com` está hardcoded en múltiples lugares para emails
 - [ ] **Validación de tamaño faltante en backend** - El backend no valida el tamaño del archivo de logo (solo el frontend limita a 2MB)
 - [ ] **No hay rate limiting** - En el endpoint de subida de logo `/api/logo`
@@ -34,3 +33,9 @@
   - DEBUG req.body (línea 879)
   - Logs de depuración de logo (líneas 1249, 1257, 1269, 1273, 1277)
   - Logs de depuración en `public/index.html` (función `aplicarLogo`)
+- **Flujo seguro de creación de usuarios** - Al crear usuario:
+  - Ya no se requiere que el admin defina la contraseña
+  - Se genera contraseña temporal aleatoria automáticamente
+  - Se crea token de 7 días y se envía correo con enlace a `/reset-password.html`
+  - Se fuerza cambio de contraseña en primer login (`cambio_password = 1`)
+  - Archivo: `server.js:615-660`

@@ -1474,7 +1474,6 @@ async function desbloquearIP(ip) {
     <div class="form-grid">
       <div class="form-group"><label>Nombre Completo *</label><input type="text" id="usr-nombre" placeholder="Nombre del usuario"/></div>
       <div class="form-group"><label>Correo Electrónico *</label><input type="email" id="usr-email" placeholder="correo@empresa.com"/></div>
-      <div class="form-group"><label>Contraseña *</label><input type="password" id="usr-password" placeholder="Mínimo 6 caracteres"/></div>
       <div class="form-group"><label>Rol *</label>
         <select id="usr-rol">
           <option value="operador">Operador — Ver su sede</option>
@@ -3029,13 +3028,10 @@ function abrirModalUsuario(id=null) {
     document.getElementById('usr-rol').value=u.rol;
     document.getElementById('usr-sede').value=u.sede||'';
     document.getElementById('usr-activo').value=u.activo?'1':'0';
-    document.getElementById('usr-password').value='';
-    document.getElementById('usr-password').placeholder='Dejar vacío para no cambiar';
   } else {
-    ['usr-nombre','usr-email','usr-password'].forEach(i=>document.getElementById(i).value='');
+    ['usr-nombre','usr-email'].forEach(i=>document.getElementById(i).value='');
     document.getElementById('usr-rol').value='operador';
     document.getElementById('usr-sede').value='';
-    document.getElementById('usr-password').placeholder='Mínimo 6 caracteres';
   }
   // Cargar empleados asignados
   _empAsigSeleccionados = new Set();
@@ -3059,14 +3055,13 @@ async function guardarUsuario() {
   const sede    =document.getElementById('usr-sede').value;
   const activo  =document.getElementById('usr-activo').value==='1';
   if (!nombre||!email||!rol||!sede) { showToast('Completa todos los campos incluyendo sede.','error'); return; }
-  if (!editUsrId && password.length < 6) { showToast('La contraseña debe tener mínimo 6 caracteres.','error'); return; }
   setLoading('btn-guardar-usr',true);
   try {
     let idGuardado = editUsrId;
     if (editUsrId) {
       await PUT('/api/usuarios/'+editUsrId, {nombre, email, rol, sede, activo, password});
     } else {
-      const res = await POST('/api/usuarios', {nombre, email, password, rol, sede});
+      const res = await POST('/api/usuarios', {nombre, email, rol, sede});
       idGuardado = res.id;
     }
     // Guardar asignaciones de empleados
@@ -3074,7 +3069,7 @@ async function guardarUsuario() {
       await PUT('/api/usuario_empleados/' + idGuardado, { empleados: [..._empAsigSeleccionados] });
     }
     cerrarModal('modal-usuario'); await loadAll(); renderUsuarios();
-    showToast(editUsrId?'Usuario actualizado.':'Usuario creado.');
+    showToast(editUsrId?'Usuario actualizado.':'Usuario creado. Se envió correo de bienvenida.');
   } catch(e) { showToast(e.message,'error'); }
   setLoading('btn-guardar-usr',false);
 }

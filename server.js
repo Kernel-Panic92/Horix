@@ -613,31 +613,38 @@ app.get('/api/usuarios', todosRoles, (req, res) =>
   res.json(db.prepare('SELECT id, nombre, email, rol, sede, activo, cambio_password, creado FROM usuarios ORDER BY creado DESC').all()));
 
 app.post('/api/usuarios', soloAdmin, async (req, res) => {
-  const { nombre, email, password, rol, sede } = req.body;
-  if (!nombre || !email || !password || !rol || !sede) return res.status(400).json({ error: 'Todos los campos son requeridos' });
-  const errPass = validarPassword(password);
-  if (errPass.length) return res.status(400).json({ error: 'Contraseña inválida: ' + errPass.join(', ') });
+  const { nombre, email, rol, sede } = req.body;
+  if (!nombre || !email || !rol || !sede) return res.status(400).json({ error: 'Todos los campos son requeridos' });
   if (!['admin','rrhh','consulta','operador','gerencia'].includes(rol)) return res.status(400).json({ error: 'Rol inválido' });
   const centroValido = db.prepare('SELECT id FROM centros WHERE nombre=? AND activo=1').get(sede);
   if (!centroValido) return res.status(400).json({ error: 'Centro de operación inválido' });
   const existe = db.prepare('SELECT id FROM usuarios WHERE email = ?').get(email.toLowerCase().trim());
   if (existe) return res.status(400).json({ error: 'Ya existe un usuario con ese correo' });
+  
   const id = uid();
-  const pwHash = await hashPassword(password);
-  db.prepare('INSERT INTO usuarios (id,nombre,email,password,rol,sede,activo,creado) VALUES (?,?,?,?,?,?,?,?)').run(
-    id, nombre.trim(), email.toLowerCase().trim(), pwHash, rol, sede, 1, new Date().toISOString()
+  const tempPass = Math.random().toString(36).slice(-10) + 'A1!';
+  const pwHash = await hashPassword(tempPass);
+  db.prepare('INSERT INTO usuarios (id,nombre,email,password,rol,sede,activo,cambio_password,creado) VALUES (?,?,?,?,?,?,?,?,?)').run(
+     id, nombre.trim(), email.toLowerCase().trim(), pwHash, rol, sede, 1, 1, new Date().toISOString()
   );
   
-  // Enviar correo de bienvenida
+  // Generar token y enviar correo con enlace de configuración
   try {
     const cfg = getConfig();
     if (cfg.smtp_host) {
+      // Borrar tokens anteriores del usuario
+      db.prepare('DELETE FROM tokens_reset WHERE usuarioId = ?').run(id);
+      const token  = generateToken();
+      const expira = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(); // 7 días
+      db.prepare('INSERT INTO tokens_reset VALUES (?,?,?)').run(token, id, expira);
+      
       const rolTxt = {admin:'Admin',rrhh:'RRHH',gerencia:'Gerencia',consulta:'Consulta',operador:'Operador'}[rol]||rol;
-      await enviarCorreo(email, '👋 Bienvenido a Horix - Credenciales',
-        `Hola ${nombre},\n\nTu cuenta ha sido creada en Horix.\n\n📧 Correo: ${email}\n🔑 Rol: ${rolTxt}\n📍 Sede: ${sede}\n\nPor favor cambia tu contraseña en el primer acceso.\n\nIngresa en: https://horixvitamar.fortiddns.com\n\nSaludos,\nEquipo Horix`
+      const enlace = `https://horixvitamar.fortiddns.com/reset-password.html?token=${token}`;
+      await enviarCorreo(email, '👋 Bienvenido a Horix - Configura tu contraseña',
+        `Hola ${nombre},\n\nTu cuenta ha sido creada en Horix.\n\n📧 Correo: ${email}\n🔑 Rol: ${rolTxt}\n📍 Sede: ${sede}\n\nPor favor configura tu contraseña haciendo clic en el siguiente enlace (válido por 7 días):\n${enlace}\n\nSaludos,\nEquipo Horix`
       );
     }
-  } catch (e) { console.log('Error enviando correo:', e.message); }
+  } catch (e) { console.error('Error enviando correo:', e.message); }
   
   res.json({ id });
 });
