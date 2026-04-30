@@ -3072,15 +3072,6 @@ async function guardarUsuario() {
   } catch(e) { showToast(e.message,'error'); }
   setLoading('btn-guardar-usr',false);
 }
-    // Guardar asignaciones de empleados
-    if (idGuardado) {
-      await PUT('/api/usuario_empleados/' + idGuardado, { empleados: [..._empAsigSeleccionados] });
-    }
-    cerrarModal('modal-usuario'); await loadAll(); renderUsuarios();
-    showToast(editUsrId?'Usuario actualizado.':'Usuario creado. Se envió correo de bienvenida.');
-  } catch(e) { showToast(e.message,'error'); }
-  setLoading('btn-guardar-usr',false);
-}
 async function eliminarUsuario(id) {
   confirmar({
     titulo: 'Eliminar Usuario',
