@@ -2443,6 +2443,10 @@ function renderHistorial() {
             <button class="btn btn-danger btn-sm" onclick="aprobarRegistro('${r.id}', false)">✗</button>
           </div>`
         : '';
+      // Acción de eliminar (solo para admin)
+      const deleteAction = puedoEditar() && soyAdmin()
+        ? `<button class="btn btn-danger btn-sm" onclick="event.stopPropagation(); eliminarRegistro('${r.id}')">🗑️</button>`
+        : '';
       return `<tr style="cursor:pointer" onclick="verDetalleRegistro('${r.id}')">
         <td data-label="Empleado"><strong>${emp?emp.nombre:'—'}</strong></td>
         <td data-label="Fecha">${fmt(r.fecha)}</td>
@@ -2450,6 +2454,7 @@ function renderHistorial() {
         <td data-label="Tipo"><span class="badge badge-${r.tipo}">${r.tipo}</span></td>
         <td data-label="Estado">${estadoBadge}</td>
         <td data-label="Aprobar/Rechazar">${quickActions}</td>
+        <td data-label="Acciones">${deleteAction}</td>
       </tr>`;
     }).join('');
     // Cargar adjuntos de cada registro visible de forma asíncrona
