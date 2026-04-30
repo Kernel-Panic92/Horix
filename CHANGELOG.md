@@ -12,7 +12,7 @@
 - [ ] **No hay rate limiting** - En el endpoint de subida de logo `/api/logo`
 
 ### Bajos
-- [ ] **Demasiados console.log** - Hay ~20+ statements `console.log` en `server.js` que deberían limpiarse
+- [x] **Demasiados console.log** - Eliminados ~7 statements `console.log` de debug en `server.js` (migración, DEBUG req.body, logs de logo). Archivo: `server.js`
 - [ ] **CORS permisivo** - `server.js:21` usa `cors()` sin restricciones (acepta cualquier origen)
 - [ ] **Backup incluye contraseñas** - El backup contiene passwords hasheadas, considerar encriptar el ZIP
 - [ ] **Uso inconsistente de `var`** - Algunos loops usan `var` en lugar de `let/const`
@@ -29,3 +29,8 @@
   - El `catch` ahora restaura el texto "HORIX." en lugar de quedar vacío
   - Agregado manejo `onerror` en la imagen y cache-busting con `?t=` timestamp
   - Archivos: `public/index.html:3361-3385`
+- **Limpieza de console.log** - Eliminados statements de debug innecesarios en `server.js`:
+  - Migración smtp_password (línea 298)
+  - DEBUG req.body (línea 879)
+  - Logs de depuración de logo (líneas 1249, 1257, 1269, 1273, 1277)
+  - Logs de depuración en `public/index.html` (función `aplicarLogo`)

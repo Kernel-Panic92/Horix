@@ -295,7 +295,6 @@ let htmlContenido = cuerpo;
   if (row && row.valor && !row.valor.startsWith('aes:')) {
     const encrypted = encryptSmtp(row.valor);
     db.prepare("UPDATE configuracion SET valor=? WHERE clave='smtp_password'").run(encrypted);
-    console.log('🔐 smtp_password migrado a AES-256-GCM');
   }
 }
 
@@ -876,7 +875,6 @@ app.get('/api/registros', todosRoles, (req, res) => {
 
 app.post('/api/registros', adminRrhhOp, (req, res) => {
   const { empleadoId, nominaId, fecha, horas, tipo, concepto, aprobador, motivo, observaciones, transporte } = req.body;
-  console.log('DEBUG req.body:', req.body);
   const hoy = new Date().toISOString().split('T')[0];
   if (fecha > hoy) return res.status(400).json({ error: 'La fecha no puede ser futura.' });
   const u = req.usuario;
@@ -1246,7 +1244,6 @@ app.get('/logo', (req, res) => {
   for (const ext of exts) {
     const p = LOGO_PATH + ext;
     if (fs.existsSync(p)) {
-      console.log('[Logo] Sirviendo logo:', p);
       const mime = ext === '.svg' ? 'image/svg+xml'
                  : ext === '.webp' ? 'image/webp'
                  : ext === '.jpg' || ext === '.jpeg' ? 'image/jpeg'
@@ -1254,7 +1251,6 @@ app.get('/logo', (req, res) => {
       return res.set('Content-Type', mime).set('Cache-Control', 'no-store').sendFile(p);
     }
   }
-  console.log('[Logo] No se encontró logo en:', LOGO_PATH + '.*');
   res.status(404).json({ error: 'Sin logo' });
 });
 
@@ -1266,15 +1262,13 @@ app.post('/api/logo', soloAdmin, upload.single('logo'), (req, res) => {
              : mime === 'image/webp'    ? '.webp'
              : mime === 'image/jpeg'    ? '.jpg'
              : '.png';
-  console.log('[Logo] Subiendo logo:', req.file.originalname, '->', ext, '(' + req.file.size + ' bytes)');
   // Borrar logos anteriores
   ['.png','.jpg','.jpeg','.svg','.webp'].forEach(e => {
     const p = LOGO_PATH + e;
-    if (fs.existsSync(p)) { fs.unlinkSync(p); console.log('[Logo] Borrado anterior:', p); }
+    if (fs.existsSync(p)) fs.unlinkSync(p);
   });
   const dest = LOGO_PATH + ext;
   fs.writeFileSync(dest, req.file.buffer);
-  console.log('[Logo] Logo guardado en:', dest, 'Existe:', fs.existsSync(dest));
   res.json({ ok: true });
 });
 
