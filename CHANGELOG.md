@@ -1,5 +1,31 @@
 # Changelog - Horix
 
+## [2.3.5] - 2026-04-30
+
+### ✅ Estado Estable (Commit `9428a6f`)
+- **Login funcionando**: Renombrado a `iniciarSesionV2` para evitar conflictos de caché
+- **Exportar CSV corregido**: Eliminado `});` extra que causaba error de sintaxis
+- **Historial simplificado**: Tabla de 5 columnas (Empleado, Fecha, Horas, Tipo, Estado) + click-to-detail
+- **Botones rápidos**: Aprobar/Rechazar directo en tabla (solo registros pendientes)
+- **Permisos de gerencia**: Puede crear registros y aprobar/rechazar (fix `adminRrhhOp`)
+- **Eliminar restringido**: Solo visible para Admin (no gerencia)
+- **Adjuntos funcionando**: Descarga vía API con token (`/api/adjuntos/:id/descargar`)
+- **Reportes simplificados**: Tabla de 5 columnas igual que Historial
+- **Responsive completo**: Tablas, sidebar colapsable, transiciones suaves (v2.3.4)
+
+### ❌ Cambios Revertidos (No estables)
+- **Transporte del Mes en Dashboard**: Implementado pero causaba problemas de renderizado
+- **Filtro por tipo en Reportes**: Implementado pero revertido por inestabilidad
+- **Mejoras de nitidez en Widgets**: Intentos de fix borrosidad causaron crashes y pérdida de botones S/M/G
+- **Ajustes de altura y flexbox en Widgets**: Causaron desbordamiento y crashes
+
+### 📋 Pendiente
+- [ ] **Mejorar legibilidad de widgets**: Optimizar sin romper funcionalidad existente
+- [ ] **Agregar estadística "Transporte del Mes"**: Cuando se resuelva estabilidad de widgets
+- [ ] **Filtro por tipo en Reportes**: Re-implementar de forma más estable
+
+---
+
 ## [2.3.4] - 2026-04-29
 
 ### ✨ Añadido
