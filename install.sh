@@ -1,6 +1,6 @@
 #!/bin/bash
 # ═══════════════════════════════════════════════════════════════
-#  install.sh — Instalador automático de Horix v2.3.1
+#  install.sh — Instalador automático de Horix v2.3.2
 #
 #  Uso:
 #    chmod +x install.sh
@@ -19,7 +19,7 @@ INSTALL_DIR="$(pwd)"
 
 echo ""
 echo -e "${AZUL}══════════════════════════════════════════════${RESET}"
-echo -e "${AZUL}   Horix — Instalador v2.3.1${RESET}"
+echo -e "${AZUL}   Horix — Instalador v2.3.2${RESET}"
 echo -e "${AZUL}   Sistema de Control de Horas Extra${RESET}"
 echo -e "${AZUL}══════════════════════════════════════════════${RESET}"
 echo ""
@@ -342,7 +342,7 @@ fi
 SERVER_IP=$(hostname -I | awk '{print $1}')
 echo ""
 echo -e "${VERDE}══════════════════════════════════════════════${RESET}"
-echo -e "${VERDE}  ✅ Horix v2.3.1 instalado correctamente${RESET}"
+echo -e "${VERDE}  ✅ Horix v2.3.2 instalado correctamente${RESET}"
 echo -e "${VERDE}══════════════════════════════════════════════${RESET}"
 echo ""
 echo -e "  🏢 Empresa:  $EMPRESA"
